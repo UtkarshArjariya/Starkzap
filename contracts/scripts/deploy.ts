@@ -41,15 +41,13 @@ async function waitForFunds(
 ): Promise<void> {
   const STRK_TOKEN =
     "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d";
-  const SEL_BALANCE =
-    "0x2e4263afad30923c891518314c3c95dbe830a16874e8abc5777a9a20b54c76e";
 
   console.log("Waiting for STRK funds at", address, "...");
   for (let i = 0; i < 360; i++) {  // 30 min at 5s intervals
     try {
       const res = await provider.callContract({
         contractAddress: STRK_TOKEN,
-        entrypoint: SEL_BALANCE,
+        entrypoint: "balanceOf",
         calldata: [address],
       });
       const balance = BigInt(res[0]);
@@ -134,10 +132,6 @@ async function deploy() {
     contractsDir,
     "target/dev/dare_board_DareBoard.contract_class.json"
   );
-  const casmPath = path.join(
-    contractsDir,
-    "target/dev/dare_board_DareBoard.compiled_contract_class.json"
-  );
 
   if (!fs.existsSync(sierraPath)) {
     console.error("Sierra artifact not found. Run: scarb build");
@@ -145,13 +139,13 @@ async function deploy() {
   }
 
   const sierra = json.parse(fs.readFileSync(sierraPath).toString());
-  const casm = json.parse(fs.readFileSync(casmPath).toString());
 
   // ── Declare ───────────────────────────────────────────────────────────────
+  // Do NOT pass casm — let the node compile Sierra to CASM to avoid hash mismatch
   console.log("\nDeclaring contract class...");
   let classHash: string;
   try {
-    const declareResponse = await account.declare({ contract: sierra, casm });
+    const declareResponse = await account.declare({ contract: sierra });
     await provider.waitForTransaction(declareResponse.transaction_hash);
     classHash = declareResponse.class_hash;
     console.log("Class hash:", classHash, "✅");
