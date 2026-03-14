@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { getDare, claimDare, finalizeDare } from "@/lib/contract";
-import { getTokenSymbol, formatAmount, shortAddress, STARKSCAN_URL, addressesMatch } from "@/lib/config";
+import { getTokenSymbol, formatAmount, shortAddress, STARKSCAN_URL, addressesMatch, CONTRACT_ADDRESS } from "@/lib/config";
+import { DEMO_DARES } from "@/lib/demoData";
 import { useWallet } from "@/context/WalletContext";
 import Header from "@/components/Header";
 import StatusBadge from "@/components/StatusBadge";
@@ -9,7 +10,9 @@ import CountdownTimer from "@/components/CountdownTimer";
 import VotePanel from "@/components/VotePanel";
 import ProofModal from "@/components/ProofModal";
 import LoadingSpinner from "@/components/LoadingSpinner";
-import { ArrowLeft, ExternalLink, Zap, Award, CheckCircle, Clock } from "lucide-react";
+import { ArrowLeft, ExternalLink, Zap, Award, CheckCircle, Clock, FlaskConical } from "lucide-react";
+
+const IS_DEMO = !CONTRACT_ADDRESS;
 
 export default function DarePage() {
   const { id } = useParams();
@@ -24,6 +27,16 @@ export default function DarePage() {
 
   const load = useCallback(async () => {
     try {
+      if (IS_DEMO) {
+        const demo = DEMO_DARES.find((d) => d.id.toString() === id);
+        if (!demo) {
+          setError("Demo dare not found");
+        } else {
+          setDare(demo);
+        }
+        setLoading(false);
+        return;
+      }
       const d = await getDare(BigInt(id));
       setDare(d);
     } catch (e) {
@@ -132,6 +145,14 @@ export default function DarePage() {
       <Header />
 
       <main className="max-w-2xl mx-auto px-4 py-8">
+        {/* Demo banner */}
+        {IS_DEMO && (
+          <div className="flex items-center gap-2 text-amber-400 text-xs bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-2.5 mb-5" data-testid="dare-demo-banner">
+            <FlaskConical size={13} />
+            Preview Mode — this dare is sample data. All actions disabled until contract is deployed.
+          </div>
+        )}
+
         {/* Back */}
         <Link
           to="/"
@@ -232,6 +253,12 @@ export default function DarePage() {
 
           {/* Action buttons */}
           <div className="space-y-3">
+            {IS_DEMO ? (
+              <div className="w-full py-3 text-center text-gray-500 text-sm bg-white/5 border border-white/10 rounded-xl">
+                Actions available after contract is deployed
+              </div>
+            ) : (
+              <>
             {/* Claim */}
             {dare.status === "Open" && (
               canClaim ? (
@@ -286,6 +313,8 @@ export default function DarePage() {
                 )}
               </button>
             )}
+              </>
+            )}
           </div>
 
           {/* Tx hash */}
@@ -317,7 +346,11 @@ export default function DarePage() {
               <Zap size={16} className="text-amber-400" />
               Community Vote
             </h2>
-            <VotePanel dare={dare} onVoted={load} />
+            {IS_DEMO ? (
+              <VotePanel dare={dare} onVoted={load} />
+            ) : (
+              <VotePanel dare={dare} onVoted={load} />
+            )}
           </div>
         )}
       </main>

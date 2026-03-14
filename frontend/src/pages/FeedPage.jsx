@@ -2,12 +2,14 @@ import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { getAllDares } from "@/lib/contract";
 import { CONTRACT_ADDRESS } from "@/lib/config";
+import { DEMO_DARES } from "@/lib/demoData";
 import DareCard from "@/components/DareCard";
 import Header from "@/components/Header";
 import LoadingSpinner from "@/components/LoadingSpinner";
-import { Zap, Plus } from "lucide-react";
+import { Zap, Plus, FlaskConical } from "lucide-react";
 
 const FILTER_TABS = ["All", "Open", "Voting", "Approved", "Rejected"];
+const IS_DEMO = !CONTRACT_ADDRESS;
 
 export default function FeedPage() {
   const [dares, setDares] = useState([]);
@@ -16,8 +18,8 @@ export default function FeedPage() {
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
-    if (!CONTRACT_ADDRESS) {
-      setError("Contract not yet deployed. Set REACT_APP_CONTRACT_ADDRESS in .env.");
+    if (IS_DEMO) {
+      setDares(DEMO_DARES);
       setLoading(false);
       return;
     }
@@ -65,6 +67,16 @@ export default function FeedPage() {
         </div>
       </div>
 
+      {/* Demo mode banner */}
+      {IS_DEMO && (
+        <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2.5 text-center" data-testid="demo-banner">
+          <span className="inline-flex items-center gap-2 text-amber-400 text-xs font-medium">
+            <FlaskConical size={13} />
+            Preview Mode — sample dares shown. Contract not yet deployed.
+          </span>
+        </div>
+      )}
+
       <main className="max-w-5xl mx-auto px-4 py-8">
         {/* Toolbar */}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
@@ -103,19 +115,9 @@ export default function FeedPage() {
             <LoadingSpinner size="lg" text="Loading dares from chain..." />
           </div>
         ) : error ? (
-          <div
-            className="text-center py-20"
-            data-testid="feed-error"
-          >
+          <div className="text-center py-20" data-testid="feed-error">
             <div className="inline-block bg-red-500/10 border border-red-500/20 rounded-2xl px-8 py-6 max-w-md">
               <p className="text-red-400 text-sm leading-relaxed">{error}</p>
-              {!CONTRACT_ADDRESS && (
-                <p className="text-gray-500 text-xs mt-3">
-                  Deploy the contract first, then update{" "}
-                  <code className="text-purple-400">REACT_APP_CONTRACT_ADDRESS</code> in{" "}
-                  <code className="text-purple-400">frontend/.env</code>
-                </p>
-              )}
             </div>
           </div>
         ) : filtered.length === 0 ? (
