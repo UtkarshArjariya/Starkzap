@@ -157,9 +157,21 @@ export async function hasVoterVoted(dareId, voter) {
  * Create a dare. Multicall: ERC20 approve + create_dare
  */
 export async function createDare(wallet, params) {
-  const amountWei = BigInt(Math.floor(parseFloat(params.rewardAmount) * 1e18));
+  if (!CONTRACT_ADDRESS) {
+    throw new Error("Contract not deployed yet. Set REACT_APP_CONTRACT_ADDRESS in frontend/.env");
+  }
+  if (!params.rewardToken || params.rewardToken === "0x") {
+    throw new Error("Invalid reward token address");
+  }
+
+  const amountFloat = parseFloat(params.rewardAmount);
+  if (!amountFloat || amountFloat <= 0) {
+    throw new Error("Reward amount must be greater than 0");
+  }
+
+  const amountWei = BigInt(Math.round(amountFloat * 1e18));
   const amountU256 = uint256.bnToUint256(amountWei);
-  const deadlineTs = Math.floor(params.deadline.getTime() / 1000);
+  const deadlineTs = Math.floor(new Date(params.deadline).getTime() / 1000);
 
   const callData = new CallData(DARE_BOARD_ABI);
 
