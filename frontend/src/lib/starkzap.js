@@ -21,9 +21,9 @@ function makeWalletObj(address, executeFn, starknetObj = null) {
 export async function getInstalledWallets() {
   try {
     const gsw = getStarknet({ windowObject: window });
-    const all = await gsw.getAvailableWallets();
+    const all = await gsw.getAvailableWallets().catch(() => []);
     // Filter to only Starknet wallets
-    return all.filter((w) =>
+    return (all || []).filter((w) =>
       STARKNET_WALLET_IDS.some((id) => w.id?.toLowerCase().includes(id.toLowerCase()))
     );
   } catch {
@@ -33,9 +33,22 @@ export async function getInstalledWallets() {
 
 /** Connect to a specific browser-extension wallet object */
 export async function connectExtensionWallet(walletObj) {
-  const gsw = getStarknet({ windowObject: window });
-  const enabled = await gsw.enable(walletObj, { starknetVersion: "v5" });
-  const address = enabled.selectedAddress || enabled.account?.address;
+  let enabled;
+  try {
+    const gsw = getStarknet({ windowObject: window });
+    enabled = await gsw.enable(walletObj, { starknetVersion: "v5" });
+  } catch (e) {
+    // Extension errors (Key ring is empty, TRPCClientError, etc.)
+    const msg = e?.message || String(e);
+    if (msg.includes("Key ring") || msg.includes("key ring")) {
+      throw new Error("Wallet has no accounts. Please set up an account in the extension first.");
+    }
+    if (msg.includes("TRPC") || msg.includes("Internal server")) {
+      throw new Error("Wallet extension error. Try reloading the extension or using Direct Key.");
+    }
+    throw new Error(msg || "Failed to connect wallet extension");
+  }
+  const address = enabled?.selectedAddress || enabled?.account?.address;
   if (!address) throw new Error("Wallet enabled but no address returned");
   return makeWalletObj(
     address,
@@ -64,9 +77,9 @@ export async function connectWithPrivateKey(address, privateKey) {
 export async function getConnectedWallet() {
   try {
     const gsw = getStarknet({ windowObject: window });
-    const last = await gsw.getLastConnectedWallet();
+    const last = await gsw.getLastConnectedWallet().catch(() => null);
     if (!last) return null;
-    const enabled = await gsw.enable(last, { starknetVersion: "v5" });
+    const enabled = await gsw.enable(last, { starknetVersion: "v5" }).catch(() => null);
     if (!enabled?.selectedAddress) return null;
     return makeWalletObj(
       enabled.selectedAddress,

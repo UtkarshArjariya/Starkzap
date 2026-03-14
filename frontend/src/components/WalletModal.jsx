@@ -225,7 +225,7 @@ export default function WalletModal({ onConnect, onClose }) {
                   </label>
                   <input
                     type="text"
-                    placeholder="0x05621..."
+                    placeholder="0x031e44..."
                     value={keyAddress}
                     onChange={(e) => setKeyAddress(e.target.value)}
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm placeholder-gray-700 focus:outline-none focus:border-purple-500/50 font-mono"
@@ -240,7 +240,7 @@ export default function WalletModal({ onConnect, onClose }) {
                   <div className="relative">
                     <input
                       type={showKey ? "text" : "password"}
-                      placeholder="0x00dcd3..."
+                      placeholder="0x00e6d4..."
                       value={privateKey}
                       onChange={(e) => setPrivateKey(e.target.value)}
                       className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 pr-10 text-white text-sm placeholder-gray-700 focus:outline-none focus:border-purple-500/50 font-mono"
