@@ -16,7 +16,7 @@ export function getTokenSymbol(address) {
 
 export const RPC_URL =
   process.env.REACT_APP_RPC_URL ||
-  "https://starknet-sepolia.public.blastapi.io";
+  "https://starknet-sepolia-rpc.publicnode.com";
 
 export const CONTRACT_ADDRESS =
   process.env.REACT_APP_CONTRACT_ADDRESS || "";

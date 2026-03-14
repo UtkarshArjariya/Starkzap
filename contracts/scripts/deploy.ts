@@ -9,11 +9,11 @@
  * After deploying, update REACT_APP_CONTRACT_ADDRESS in /app/frontend/.env
  */
 
-import { RpcProvider, Account, CallData, stark, json } from "starknet";
+import { RpcProvider, Account, CallData, stark, json, hash } from "starknet";
 import * as fs from "fs";
 import * as path from "path";
 
-const RPC_URL = "https://starknet-sepolia.public.blastapi.io";
+const RPC_URL = "https://starknet-sepolia-rpc.publicnode.com";
 const DEPLOYER_PUBLIC_KEY =
   process.env.DEPLOYER_PUBLIC_KEY ||
   "0x05621F5e671ccb298FD6B226A8e0Bfba97DAF4BAa6196C2F12cEEe03A15765a9";
@@ -56,14 +56,14 @@ async function deploy() {
     classHash = declareResponse.class_hash;
     console.log("Class hash:", classHash);
   } catch (e: any) {
-    if (e.message && e.message.includes("already declared")) {
-      // Extract class hash from error or sierra file
-      const { hash } = await provider.getClassHashAt("0x0"); // won't work; use manual
-      throw new Error(
-        "Contract already declared. Extract classHash from the Scarb artifacts or Starkscan."
-      );
+    const msg = e.message || JSON.stringify(e);
+    if (msg.includes("already declared") || msg.includes("ClassAlreadyDeclared") || msg.includes("DuplicateTx")) {
+      // Contract already on-chain — compute class hash locally from Sierra JSON
+      classHash = hash.computeSierraContractClassHash(sierra);
+      console.log("Contract already declared. Class hash:", classHash);
+    } else {
+      throw e;
     }
-    throw e;
   }
 
   // ── Deploy ────────────────────────────────────────────────────────────────
