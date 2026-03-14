@@ -1,66 +1,92 @@
 /**
- * starkzap.js — Wallet connection wrapper
+ * starkzap.js — Wallet connection layer
  *
- * Current implementation: uses @starknet-io/get-starknet for wallet detection
- * (Argent X / Braavos browser extension).
- *
- * To swap in real Starkzap + Privy when REACT_APP_PRIVY_APP_ID is real:
- *   1. npm install starkzap
- *   2. Replace connectWallet() with the StarkSDK / Privy flow
- *   3. The rest of the app uses wallet.execute() — zero changes needed elsewhere.
- *
- * Starkzap planned integration:
- *   import { StarkSDK } from "starkzap";
- *   const sdk = new StarkSDK({
- *     network: "sepolia",
- *     paymaster: { type: "avnu", url: "https://paymaster.avnu.fi" },
- *   });
- *   wallet = await sdk.connectWallet({
- *     auth: { type: "privy", appId: process.env.REACT_APP_PRIVY_APP_ID },
- *   });
+ * Two modes:
+ *  1. Browser extension  — Braavos / Argent X via getStarknet() (no MetaMask modal)
+ *  2. Direct key         — starknet.js Account(provider, address, privateKey)
  */
 
-import { connect, disconnect as gstDisconnect } from "@starknet-io/get-starknet";
+import { getStarknet } from "@starknet-io/get-starknet-core";
+import { Account, RpcProvider } from "starknet";
+import { RPC_URL } from "./config";
 
-export async function connectWallet() {
-  const starknet = await connect({
-    modalMode: "alwaysAsk",
-    modalTheme: "dark",
-  });
+// Starknet-only wallet IDs — explicitly exclude EVM wallets
+const STARKNET_WALLET_IDS = ["braavos", "argentX", "argent"];
 
-  if (!starknet || !starknet.account) {
-    throw new Error("No wallet found. Please install Argent X or Braavos.");
+function makeWalletObj(address, executeFn, starknetObj = null) {
+  return { address, execute: executeFn, starknet: starknetObj };
+}
+
+/** List installed Starknet-native wallets (no MetaMask) */
+export async function getInstalledWallets() {
+  try {
+    const gsw = getStarknet({ windowObject: window });
+    const all = await gsw.getAvailableWallets();
+    // Filter to only Starknet wallets
+    return all.filter((w) =>
+      STARKNET_WALLET_IDS.some((id) => w.id?.toLowerCase().includes(id.toLowerCase()))
+    );
+  } catch {
+    return [];
   }
+}
 
-  const address = starknet.selectedAddress;
-
-  return {
+/** Connect to a specific browser-extension wallet object */
+export async function connectExtensionWallet(walletObj) {
+  const gsw = getStarknet({ windowObject: window });
+  const enabled = await gsw.enable(walletObj, { starknetVersion: "v5" });
+  const address = enabled.selectedAddress || enabled.account?.address;
+  if (!address) throw new Error("Wallet enabled but no address returned");
+  return makeWalletObj(
     address,
-    starknet,
-    /** wallet.execute(calls) — matches Starkzap's interface exactly */
-    execute: async (calls) => {
-      const response = await starknet.account.execute(calls);
-      return { transaction_hash: response.transaction_hash };
+    async (calls) => {
+      const res = await enabled.account.execute(calls);
+      return { transaction_hash: res.transaction_hash };
     },
-  };
+    enabled
+  );
+}
+
+/** Connect with a raw private key — dev / direct mode */
+export async function connectWithPrivateKey(address, privateKey) {
+  if (!address || !privateKey)
+    throw new Error("Address and private key are required");
+  const provider = new RpcProvider({ nodeUrl: RPC_URL });
+  const account = new Account(provider, address, privateKey);
+  // Verify the account exists on-chain (optional sanity check)
+  return makeWalletObj(address, async (calls) => {
+    const res = await account.execute(calls);
+    return { transaction_hash: res.transaction_hash };
+  });
+}
+
+/** Try to restore last connected wallet silently on page load */
+export async function getConnectedWallet() {
+  try {
+    const gsw = getStarknet({ windowObject: window });
+    const last = await gsw.getLastConnectedWallet();
+    if (!last) return null;
+    const enabled = await gsw.enable(last, { starknetVersion: "v5" });
+    if (!enabled?.selectedAddress) return null;
+    return makeWalletObj(
+      enabled.selectedAddress,
+      async (calls) => {
+        const res = await enabled.account.execute(calls);
+        return { transaction_hash: res.transaction_hash };
+      },
+      enabled
+    );
+  } catch {
+    return null;
+  }
 }
 
 export async function disconnectWallet() {
-  await gstDisconnect({ clearLastWallet: true });
+  try {
+    const gsw = getStarknet({ windowObject: window });
+    await gsw.disconnect({ clearLastWallet: true });
+  } catch {
+    // ignore
+  }
 }
 
-export async function getConnectedWallet() {
-  const starknet = await connect({ modalMode: "neverAsk" });
-  if (!starknet || !starknet.isConnected || !starknet.selectedAddress) {
-    return null;
-  }
-  const address = starknet.selectedAddress;
-  return {
-    address,
-    starknet,
-    execute: async (calls) => {
-      const response = await starknet.account.execute(calls);
-      return { transaction_hash: response.transaction_hash };
-    },
-  };
-}
