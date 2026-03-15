@@ -1,0 +1,436 @@
+[
+  {
+    "type": "impl",
+    "name": "DareBoardImpl",
+    "interface_name": "dare_board::dare_board::IDareBoard"
+  },
+  {
+    "type": "struct",
+    "name": "core::byte_array::ByteArray",
+    "members": [
+      {
+        "name": "data",
+        "type": "core::array::Array::<core::bytes_31::bytes31>"
+      },
+      {
+        "name": "pending_word",
+        "type": "core::felt252"
+      },
+      {
+        "name": "pending_word_len",
+        "type": "core::internal::bounded_int::BoundedInt::<0, 30>"
+      }
+    ]
+  },
+  {
+    "type": "struct",
+    "name": "core::integer::u256",
+    "members": [
+      {
+        "name": "low",
+        "type": "core::integer::u128"
+      },
+      {
+        "name": "high",
+        "type": "core::integer::u128"
+      }
+    ]
+  },
+  {
+    "type": "enum",
+    "name": "core::bool",
+    "variants": [
+      {
+        "name": "False",
+        "type": "()"
+      },
+      {
+        "name": "True",
+        "type": "()"
+      }
+    ]
+  },
+  {
+    "type": "enum",
+    "name": "dare_board::dare_board::DareStatus",
+    "variants": [
+      {
+        "name": "Open",
+        "type": "()"
+      },
+      {
+        "name": "Claimed",
+        "type": "()"
+      },
+      {
+        "name": "Voting",
+        "type": "()"
+      },
+      {
+        "name": "Approved",
+        "type": "()"
+      },
+      {
+        "name": "Rejected",
+        "type": "()"
+      },
+      {
+        "name": "Expired",
+        "type": "()"
+      }
+    ]
+  },
+  {
+    "type": "struct",
+    "name": "dare_board::dare_board::Dare",
+    "members": [
+      {
+        "name": "id",
+        "type": "core::integer::u64"
+      },
+      {
+        "name": "poster",
+        "type": "core::starknet::contract_address::ContractAddress"
+      },
+      {
+        "name": "title",
+        "type": "core::felt252"
+      },
+      {
+        "name": "description",
+        "type": "core::byte_array::ByteArray"
+      },
+      {
+        "name": "reward_token",
+        "type": "core::starknet::contract_address::ContractAddress"
+      },
+      {
+        "name": "reward_amount",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "deadline",
+        "type": "core::integer::u64"
+      },
+      {
+        "name": "claimer",
+        "type": "core::starknet::contract_address::ContractAddress"
+      },
+      {
+        "name": "proof_url",
+        "type": "core::byte_array::ByteArray"
+      },
+      {
+        "name": "proof_description",
+        "type": "core::byte_array::ByteArray"
+      },
+      {
+        "name": "proof_submitted_at",
+        "type": "core::integer::u64"
+      },
+      {
+        "name": "voting_end",
+        "type": "core::integer::u64"
+      },
+      {
+        "name": "approve_votes",
+        "type": "core::integer::u64"
+      },
+      {
+        "name": "reject_votes",
+        "type": "core::integer::u64"
+      },
+      {
+        "name": "status",
+        "type": "dare_board::dare_board::DareStatus"
+      }
+    ]
+  },
+  {
+    "type": "interface",
+    "name": "dare_board::dare_board::IDareBoard",
+    "items": [
+      {
+        "type": "function",
+        "name": "create_dare",
+        "inputs": [
+          {
+            "name": "title",
+            "type": "core::felt252"
+          },
+          {
+            "name": "description",
+            "type": "core::byte_array::ByteArray"
+          },
+          {
+            "name": "reward_token",
+            "type": "core::starknet::contract_address::ContractAddress"
+          },
+          {
+            "name": "reward_amount",
+            "type": "core::integer::u256"
+          },
+          {
+            "name": "deadline",
+            "type": "core::integer::u64"
+          }
+        ],
+        "outputs": [
+          {
+            "type": "core::integer::u64"
+          }
+        ],
+        "state_mutability": "external"
+      },
+      {
+        "type": "function",
+        "name": "claim_dare",
+        "inputs": [
+          {
+            "name": "dare_id",
+            "type": "core::integer::u64"
+          }
+        ],
+        "outputs": [],
+        "state_mutability": "external"
+      },
+      {
+        "type": "function",
+        "name": "submit_proof",
+        "inputs": [
+          {
+            "name": "dare_id",
+            "type": "core::integer::u64"
+          },
+          {
+            "name": "proof_url",
+            "type": "core::byte_array::ByteArray"
+          },
+          {
+            "name": "proof_description",
+            "type": "core::byte_array::ByteArray"
+          }
+        ],
+        "outputs": [],
+        "state_mutability": "external"
+      },
+      {
+        "type": "function",
+        "name": "cast_vote",
+        "inputs": [
+          {
+            "name": "dare_id",
+            "type": "core::integer::u64"
+          },
+          {
+            "name": "approve",
+            "type": "core::bool"
+          }
+        ],
+        "outputs": [],
+        "state_mutability": "external"
+      },
+      {
+        "type": "function",
+        "name": "finalize_dare",
+        "inputs": [
+          {
+            "name": "dare_id",
+            "type": "core::integer::u64"
+          }
+        ],
+        "outputs": [],
+        "state_mutability": "external"
+      },
+      {
+        "type": "function",
+        "name": "get_dare",
+        "inputs": [
+          {
+            "name": "dare_id",
+            "type": "core::integer::u64"
+          }
+        ],
+        "outputs": [
+          {
+            "type": "dare_board::dare_board::Dare"
+          }
+        ],
+        "state_mutability": "view"
+      },
+      {
+        "type": "function",
+        "name": "get_dare_count",
+        "inputs": [],
+        "outputs": [
+          {
+            "type": "core::integer::u64"
+          }
+        ],
+        "state_mutability": "view"
+      },
+      {
+        "type": "function",
+        "name": "has_voter_voted",
+        "inputs": [
+          {
+            "name": "dare_id",
+            "type": "core::integer::u64"
+          },
+          {
+            "name": "voter",
+            "type": "core::starknet::contract_address::ContractAddress"
+          }
+        ],
+        "outputs": [
+          {
+            "type": "core::bool"
+          }
+        ],
+        "state_mutability": "view"
+      }
+    ]
+  },
+  {
+    "type": "constructor",
+    "name": "constructor",
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "core::starknet::contract_address::ContractAddress"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "dare_board::dare_board::DareBoard::DareCreated",
+    "kind": "struct",
+    "members": [
+      {
+        "name": "dare_id",
+        "type": "core::integer::u64",
+        "kind": "data"
+      },
+      {
+        "name": "poster",
+        "type": "core::starknet::contract_address::ContractAddress",
+        "kind": "data"
+      },
+      {
+        "name": "reward_amount",
+        "type": "core::integer::u256",
+        "kind": "data"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "dare_board::dare_board::DareBoard::DareClaimed",
+    "kind": "struct",
+    "members": [
+      {
+        "name": "dare_id",
+        "type": "core::integer::u64",
+        "kind": "data"
+      },
+      {
+        "name": "claimer",
+        "type": "core::starknet::contract_address::ContractAddress",
+        "kind": "data"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "dare_board::dare_board::DareBoard::ProofSubmitted",
+    "kind": "struct",
+    "members": [
+      {
+        "name": "dare_id",
+        "type": "core::integer::u64",
+        "kind": "data"
+      },
+      {
+        "name": "claimer",
+        "type": "core::starknet::contract_address::ContractAddress",
+        "kind": "data"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "dare_board::dare_board::DareBoard::VoteCast",
+    "kind": "struct",
+    "members": [
+      {
+        "name": "dare_id",
+        "type": "core::integer::u64",
+        "kind": "data"
+      },
+      {
+        "name": "voter",
+        "type": "core::starknet::contract_address::ContractAddress",
+        "kind": "data"
+      },
+      {
+        "name": "approve",
+        "type": "core::bool",
+        "kind": "data"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "dare_board::dare_board::DareBoard::DareFinalized",
+    "kind": "struct",
+    "members": [
+      {
+        "name": "dare_id",
+        "type": "core::integer::u64",
+        "kind": "data"
+      },
+      {
+        "name": "status",
+        "type": "dare_board::dare_board::DareStatus",
+        "kind": "data"
+      },
+      {
+        "name": "winner",
+        "type": "core::starknet::contract_address::ContractAddress",
+        "kind": "data"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "dare_board::dare_board::DareBoard::Event",
+    "kind": "enum",
+    "variants": [
+      {
+        "name": "DareCreated",
+        "type": "dare_board::dare_board::DareBoard::DareCreated",
+        "kind": "nested"
+      },
+      {
+        "name": "DareClaimed",
+        "type": "dare_board::dare_board::DareBoard::DareClaimed",
+        "kind": "nested"
+      },
+      {
+        "name": "ProofSubmitted",
+        "type": "dare_board::dare_board::DareBoard::ProofSubmitted",
+        "kind": "nested"
+      },
+      {
+        "name": "VoteCast",
+        "type": "dare_board::dare_board::DareBoard::VoteCast",
+        "kind": "nested"
+      },
+      {
+        "name": "DareFinalized",
+        "type": "dare_board::dare_board::DareBoard::DareFinalized",
+        "kind": "nested"
+      }
+    ]
+  }
+]

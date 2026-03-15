@@ -1,0 +1,33 @@
+{
+  "name": "dare-board",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "contract:build": "cd contracts && scarb build",
+    "contract:deploy": "tsx contracts/scripts/deploy.ts",
+    "abi:sync": "tsx scripts/sync-abi.ts"
+  },
+  "dependencies": {
+    "@cartridge/controller": "latest",
+    "next": "^14.2.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "starknet": "^9.0.0",
+    "starkzap": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.0",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.4.0"
+  }
+}

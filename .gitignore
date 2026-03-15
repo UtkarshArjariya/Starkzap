@@ -1,0 +1,13 @@
+.next
+node_modules
+.env.local
+contracts/target
+target
+tsconfig.tsbuildinfo
+contracts/.snfoundry_cache
+dist
+coverage
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
