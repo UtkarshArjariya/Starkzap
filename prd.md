@@ -9,68 +9,62 @@ Dare Board is a public challenge marketplace on Starknet Sepolia.
 - The community votes on whether the proof is valid.
 - Once the review window closes, the contract finalizes payout to the claimer or returns funds to the poster.
 
-The current implementation uses a single product workspace at `dare-board/`, containing a Next.js frontend plus a Cairo contract. The contract is the source of truth for rewards, claim state, voting state, and finalization logic.
+The preferred repo shape is a single application directory at `dare-board/`, with the Next.js product app at the root and the Cairo contract kept in a dedicated `contracts/` subdirectory.
 
 ## 2. Current Technical Architecture
 
-### Frontend
+### Application Structure
 
-- Framework: Next.js 16 App Router
+- Main app root: `dare-board/`
+- Frontend framework: Next.js 16 App Router
 - Language: TypeScript
 - Styling: Tailwind CSS
-- Runtime location: `dare-board/frontend/`
+- Smart contracts: `dare-board/contracts/`
+- Legacy backend reference: `dare-board/legacy/backend/`
 
-#### Frontend File Structure
+### Why This Shape Is Preferred
 
-```text
-dare-board/
-  frontend/
-    src/
-      app/
-        api/
-          dare/[id]/route.ts
-          dares/route.ts
-          finalize/route.ts
-        create/page.tsx
-        dare/[id]/page.tsx
-        profile/page.tsx
-        globals.css
-        layout.tsx
-        page.tsx
-        providers.tsx
-      components/
-        CountdownTimer.tsx
-        DareCard.tsx
-        Header.tsx
-        LoadingSpinner.tsx
-        ProofModal.tsx
-        StatusBadge.tsx
-        VotePanel.tsx
-        WalletModal.tsx
-      context/
-        WalletContext.tsx
-      lib/
-        abi.json
-        config.ts
-        contract.ts
-        demoData.ts
-        serialize.ts
-        starkzap.ts
-        types.ts
-        utils.ts
-```
+- Next.js projects work best when app code, config, env, and scripts live in one root directory.
+- Starknet Cairo code should remain separate from the web app source because it has different tooling, build outputs, and deployment flows.
+- Legacy backend code should not sit beside active app runtime paths if it no longer powers the product.
 
-### Blockchain
-
-- Network: Starknet Sepolia
-- Contract language: Cairo 2.x
-- Contract source: `dare-board/contracts/src/dare_board.cairo`
-- ABI consumed by frontend: `dare-board/frontend/src/lib/abi.json`
-
-#### Contract File Structure
+### File Structure
 
 ```text
 dare-board/
+  src/
+    app/
+      api/
+        dare/[id]/route.ts
+        dares/route.ts
+        finalize/route.ts
+      create/page.tsx
+      dare/[id]/page.tsx
+      profile/page.tsx
+      globals.css
+      layout.tsx
+      page.tsx
+      providers.tsx
+    components/
+      CountdownTimer.tsx
+      DareCard.tsx
+      Header.tsx
+      LoadingSpinner.tsx
+      ProofModal.tsx
+      StatusBadge.tsx
+      VotePanel.tsx
+      WalletModal.tsx
+    context/
+      WalletContext.tsx
+    lib/
+      abi.json
+      config.ts
+      contract.ts
+      demoData.ts
+      serialize.ts
+      starkzap.ts
+      types.ts
+      utils.ts
   contracts/
     src/
       dare_board.cairo
@@ -81,23 +75,17 @@ dare-board/
       tsconfig.json
     Scarb.toml
     snfoundry.toml
+  legacy/
+    backend/
+  deploy.sh
+  next.config.mjs
+  package.json
+  postcss.config.js
+  tailwind.config.js
+  tsconfig.json
+  tsconfig.typecheck.json
+  vercel.json
 ```
-
-### Wallet Layer
-
-- Browser wallets: Braavos and Argent X through `@starknet-io/get-starknet-core`
-- Optional testnet fallback: direct private-key connect inside the wallet modal
-- All writes go through the frontend wallet abstraction and end in `wallet.execute(...)`
-
-### Server Capabilities
-
-The Next app also owns lightweight route handlers:
-
-- `GET /api/dares`
-- `GET /api/dare/[id]`
-- `POST /api/finalize`
-
-The old Express backend is no longer required for the live app flow.
 
 ## 3. Core User Flows
 
@@ -139,8 +127,11 @@ The old Express backend is no longer required for the live app flow.
 
 ## 4. Contract Requirements
 
-### 4.1 Required Entrypoints
+- Contract location: `dare-board/contracts/`
+- Contract source: `dare-board/contracts/src/dare_board.cairo`
+- ABI consumed by app: `dare-board/src/lib/abi.json`
 
+Required entrypoints:
 - `create_dare`
 - `claim_dare`
 - `submit_proof`
@@ -150,9 +141,8 @@ The old Express backend is no longer required for the live app flow.
 - `get_dare_count`
 - `has_voter_voted`
 
-### 4.2 Contract Rules
-
-- Title is encoded as `felt252`, so the frontend must restrict it to 31 ASCII characters.
+Rules:
+- Title is encoded as `felt252`, so the UI must restrict it to 31 ASCII characters.
 - Description and proof fields use `ByteArray`.
 - Reward amount is escrowed at creation time.
 - Poster cannot claim their own dare.
@@ -161,24 +151,21 @@ The old Express backend is no longer required for the live app flow.
 
 ## 5. Frontend Requirements
 
-### 5.1 Routes
+Routes:
+- `dare-board/src/app/page.tsx`
+- `dare-board/src/app/create/page.tsx`
+- `dare-board/src/app/dare/[id]/page.tsx`
+- `dare-board/src/app/profile/page.tsx`
 
-- `dare-board/frontend/src/app/page.tsx` — public feed
-- `dare-board/frontend/src/app/create/page.tsx` — create flow
-- `dare-board/frontend/src/app/dare/[id]/page.tsx` — claim, proof, voting, finalize
-- `dare-board/frontend/src/app/profile/page.tsx` — posted/claimed view
+Shared components:
+- `dare-board/src/components/Header.tsx`
+- `dare-board/src/components/DareCard.tsx`
+- `dare-board/src/components/StatusBadge.tsx`
+- `dare-board/src/components/VotePanel.tsx`
+- `dare-board/src/components/ProofModal.tsx`
+- `dare-board/src/components/CountdownTimer.tsx`
 
-### 5.2 Shared Components
-
-- `dare-board/frontend/src/components/Header.tsx`
-- `dare-board/frontend/src/components/DareCard.tsx`
-- `dare-board/frontend/src/components/StatusBadge.tsx`
-- `dare-board/frontend/src/components/VotePanel.tsx`
-- `dare-board/frontend/src/components/ProofModal.tsx`
-- `dare-board/frontend/src/components/CountdownTimer.tsx`
-
-### 5.3 UX Rules
-
+UX rules:
 - Feed refreshes every 15 seconds.
 - Detail page refreshes every 10 seconds.
 - Create flow shows transaction success feedback and Starkscan link.
@@ -186,85 +173,34 @@ The old Express backend is no longer required for the live app flow.
 - Profile page requires a connected wallet.
 - Demo mode is allowed when no contract address exists, but write actions remain unavailable.
 
-## 6. API Route Requirements
+## 6. Environment Variables
 
-### `GET /api/dares`
+Use `dare-board/.env.local`.
 
-- Returns serialized dare objects.
-- Uses short cache revalidation.
-
-### `GET /api/dare/[id]`
-
-- Returns a single serialized dare object.
-- Returns `404` JSON when the id is invalid or missing on-chain.
-
-### `POST /api/finalize`
-
-- Server-only route for cron-based finalization.
-- Must require `CRON_SECRET` when that env var is present.
-- Must use `DEPLOYER_ACCOUNT_ADDRESS` and `DEPLOYER_PRIVATE_KEY` only on the server.
-
-## 7. Environment Variables
-
-### Client-safe
-
+Client-safe:
 ```env
 NEXT_PUBLIC_CONTRACT_ADDRESS=
 NEXT_PUBLIC_RPC_URL=https://starknet-sepolia-rpc.publicnode.com
 NEXT_PUBLIC_STARKSCAN_URL=https://sepolia.starkscan.co
 ```
 
-### Server-only
-
+Server-only:
 ```env
 DEPLOYER_ACCOUNT_ADDRESS=
 DEPLOYER_PRIVATE_KEY=
 CRON_SECRET=
 ```
 
-## 8. Deployment Requirements
+## 7. Deployment Requirements
 
-### Contract
-
-- Build with `cd dare-board/contracts && scarb build`
+- Build contract with `cd dare-board/contracts && scarb build`
 - Deploy with `dare-board/contracts/scripts/deploy.ts`
-- Deployment script must write the ABI to `dare-board/frontend/src/lib/abi.json`
-- Deployment script must write the deployed contract address to `dare-board/frontend/.env.local`
+- Deployment script must write ABI to `dare-board/src/lib/abi.json`
+- Deployment script must write the deployed contract address to `dare-board/.env.local`
+- Deploy the Next.js app from `dare-board/`
 
-### Frontend
+## 8. Structure Decision
 
-- Deploy the Next.js app from `dare-board/frontend/`
-- Set runtime vars in the hosting platform
-- Optional cron support can use `dare-board/frontend/vercel.json`
-
-## 9. Security Requirements
-
-- Never hardcode deployer private keys in code or documentation.
-- Never expose server-only env vars to the browser.
-- All reward settlement rules must remain enforced by the contract.
-- The finalize route must not run without auth if a cron secret is configured.
-
-## 10. Current Scope
-
-### Must Have
-
-- Public feed
-- Create dare flow
-- Dare detail flow
-- Proof submission
-- Community voting
-- Manual finalize
-- Contract deployment script
-
-### Nice to Have
-
-- Hosted cron auto-finalization
-- Rich proof embeds
-- Search and filtering beyond status tabs
-
-### Out of Scope
-
-- Mainnet deployment
-- Native media upload
-- Multi-claimer support
-- Off-chain moderation layer
+- Keep the Next.js app as one single directory: `dare-board/`
+- Keep smart contracts separate inside that app directory: `dare-board/contracts/`
+- Keep old backend only under `dare-board/legacy/backend/` until deleted
