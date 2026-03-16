@@ -81,6 +81,9 @@ agenthub/agents/youtube/db
 # Dumped local documents
 dumps/
 
-
-# Local analysis notes
-CODEBASE_ANALYSIS.md
+# Cairo build artifacts (keep compiled JSON, ignore intermediates)
+contracts/Scarb.lock
+contracts/target/dev/.fingerprint/
+contracts/target/dev/incremental/
+contracts/target/release/.fingerprint/
+contracts/target/release/incremental/
