@@ -81,3 +81,6 @@ agenthub/agents/youtube/db
 # Dumped local documents
 dumps/
 
+
+# Local analysis notes
+CODEBASE_ANALYSIS.md

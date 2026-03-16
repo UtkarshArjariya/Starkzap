@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Mono, Space_Grotesk } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import Providers from "@/app/providers";
 import "@/app/globals.css";
 
@@ -16,14 +17,20 @@ const monoFont = IBM_Plex_Mono({
 
 export const metadata: Metadata = {
   title: "Dare Board",
-  description: "Post public dares, lock Starknet rewards, and let the community decide the outcome.",
+  description:
+    "Post public dares, lock Starknet rewards, and let the community decide the outcome.",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html className={`${sansFont.variable} ${monoFont.variable}`} lang="en">
       <body>
         <Providers>{children}</Providers>
+        <Analytics />
       </body>
     </html>
   );
