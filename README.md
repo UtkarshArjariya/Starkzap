@@ -1,43 +1,125 @@
-# Dare Board App
+# Starkzap
 
-This is the main Dare Board application directory.
+Starkzap is a Starknet-based social challenge platform where users can create public dares, attach on-chain rewards, submit proof of completion, and let the community participate in deciding outcomes.
 
-The preferred structure is:
-- Next.js app at the root of `dare-board/`
-- Cairo contracts in `dare-board/contracts/`
-- old backend code in `dare-board/legacy/backend/`
+The project combines a modern web experience with blockchain-backed reward logic so that challenges, incentives, and finalization are transparent and verifiable.
 
-## Commands
+## What the Project Does
 
-```bash
-cd dare-board
-npm install
-npm run dev
-npm run typecheck
-npm run build
-```
+Starkzap is designed to make internet challenges and social bounty flows more trustworthy and structured.
 
-## Environment
+With Starkzap, users can:
 
-Create `dare-board/.env.local`:
+- create public dares
+- lock rewards tied to those dares
+- browse and discover active challenges
+- submit proof for completed challenges
+- participate in community-driven review and voting
+- finalize outcomes with transparent on-chain execution
 
-```env
-NEXT_PUBLIC_CONTRACT_ADDRESS=
-NEXT_PUBLIC_RPC_URL=https://starknet-sepolia-rpc.publicnode.com
-NEXT_PUBLIC_STARKSCAN_URL=https://sepolia.starkscan.co
-DEPLOYER_ACCOUNT_ADDRESS=
-DEPLOYER_PRIVATE_KEY=
-CRON_SECRET=
-```
+The goal is to create a system where rewards are not managed by hidden off-chain logic, private spreadsheets, or centralized manual payout processes.
 
-## Structure
+## Core Product Idea
 
-```text
-dare-board/
-├── src/
-├── contracts/
-├── legacy/backend/
-├── deploy.sh
-├── package.json
-└── next.config.mjs
-```
+The product sits at the intersection of:
+
+- social coordination
+- creator/community engagement
+- on-chain incentive design
+- transparent challenge resolution
+
+A dare on Starkzap is more than a post. It is intended to be a public commitment with visible reward mechanics, a defined outcome flow, and a verifiable resolution process.
+
+## Main Product Experience
+
+The platform is centered around a few main user experiences:
+
+### 1. Discovering dares
+Users can explore a feed of challenges and view different states of activity across the platform.
+
+### 2. Creating dares
+A user can create a new challenge and define the reward structure attached to it.
+
+### 3. Viewing dare details
+Each dare can be opened individually to understand its objective, reward context, status, and proof flow.
+
+### 4. Submitting proof
+Participants can submit evidence that a dare has been completed.
+
+### 5. Community review
+The system supports a review/voting phase so outcomes are not determined by a single hidden actor.
+
+### 6. Finalization
+Once timing and state conditions are met, the dare can be finalized through the on-chain flow.
+
+## Why Starkzap Exists
+
+Many challenge and bounty systems break down because they depend too heavily on trust in a central operator. Starkzap aims to reduce that trust requirement by combining:
+
+- public challenge visibility
+- transparent reward handling
+- shared community review
+- blockchain-based execution
+
+This makes the product especially relevant for crypto-native communities, creator ecosystems, social experiments, and public campaign mechanics.
+
+## Current Project Structure
+
+The repository is currently organized as a unified root workspace.
+
+High-level sections include:
+
+- `src/` — main application source
+- `contracts/` — Starknet smart contracts
+- `legacy/backend/` — archived backend from the older structure
+- `.github/workflows/` — automation workflows
+- `deploy.sh` — deployment helper script
+- `vercel.json` — deployment configuration
+
+## Technical Direction
+
+Starkzap is currently built around:
+
+- a root-level Next.js application
+- Starknet smart contract integration
+- Cairo contracts for on-chain logic
+- Vercel deployment
+- GitHub Actions for scheduled automation
+
+The project has recently been migrated from an older nested structure into a cleaner root-level setup for easier maintenance and deployment.
+
+## Automation and Operations
+
+The platform includes an automated finalization flow for eligible dares.
+
+This automation now works through GitHub Actions calling the deployed application endpoint on a schedule. This replaced the earlier Vercel cron approach because of Hobby plan scheduling limits.
+
+## Deployment
+
+The project is deployed on Vercel.
+
+Production domain:
+
+- `https://dareboard.vercel.app`
+
+## Repository Notes
+
+This repository includes both active project materials and some supporting reference documents. Some non-primary documentation and archived materials may be stored separately to keep the root of the project cleaner.
+
+## Vision
+
+Starkzap aims to make on-chain social challenges feel:
+
+- transparent
+- community-driven
+- incentive-aligned
+- easy to participate in
+- operationally reliable
+
+Over time, the platform can evolve into a broader primitive for public challenges, bounty campaigns, creator engagement loops, and community coordination on Starknet.
+
+## Summary
+
+Starkzap is a product-focused Starknet application that turns social dares into transparent, reward-backed, community-reviewed on-chain experiences.
+
+It is not just a frontend for contract interaction; it is a structured challenge system designed to make social participation, proof, and payouts more trustworthy.

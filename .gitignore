@@ -76,3 +76,8 @@ legacy/**/.env.*
 # Misc project-local data
 agenthub/agents/youtube/db
 .vercel
+
+
+# Dumped local documents
+dumps/
+
