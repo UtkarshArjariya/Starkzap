@@ -1,1 +1,0 @@
-{"version":1,"contracts":[{"id":"bmlvoqjg8ac1q","package_name":"dare_board","contract_name":"DareBoard","module_path":"dare_board::dare_board::DareBoard","artifacts":{"sierra":"dare_board_DareBoard.contract_class.json","casm":"dare_board_DareBoard.compiled_contract_class.json"}}]}
