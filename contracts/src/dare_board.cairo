@@ -92,6 +92,7 @@ pub trait IDareBoard<TContractState> {
     );
     fn cast_vote(ref self: TContractState, dare_id: u64, approve: bool);
     fn finalize_dare(ref self: TContractState, dare_id: u64);
+    fn cancel_dare(ref self: TContractState, dare_id: u64);
     fn get_dare(self: @TContractState, dare_id: u64) -> Dare;
     fn get_dare_count(self: @TContractState) -> u64;
     fn has_voter_voted(self: @TContractState, dare_id: u64, voter: ContractAddress) -> bool;
@@ -164,6 +165,9 @@ pub mod DareBoard {
         self.owner.write(owner);
         self.dare_count.write(0);
     }
+
+    // ─── Constants ─────────────────────────────────────────────────────────────
+    const MIN_VOTES_TO_FINALIZE: u64 = 3;
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
     fn zero_address() -> ContractAddress {
@@ -273,27 +277,54 @@ pub mod DareBoard {
             let status = d.status.read();
 
             if status == DareStatus::Voting && now >= d.voting_end.read() {
-                if d.approve_votes.read() > d.reject_votes.read() {
+                let total_votes = d.approve_votes.read() + d.reject_votes.read();
+
+                if total_votes < MIN_VOTES_TO_FINALIZE {
+                    // Insufficient community participation — refund poster
+                    let poster = d.poster.read();
+                    d.status.write(DareStatus::Rejected);
+                    token.transfer(poster, amount);
+                    self.emit(DareFinalized { dare_id, status: DareStatus::Rejected, winner: poster });
+                } else if d.approve_votes.read() > d.reject_votes.read() {
                     let winner = d.claimer.read();
-                    token.transfer(winner, amount);
                     d.status.write(DareStatus::Approved);
+                    token.transfer(winner, amount);
                     self.emit(DareFinalized { dare_id, status: DareStatus::Approved, winner });
                 } else {
-                    let winner = d.poster.read();
-                    token.transfer(winner, amount);
+                    let poster = d.poster.read();
                     d.status.write(DareStatus::Rejected);
-                    self.emit(DareFinalized { dare_id, status: DareStatus::Rejected, winner });
+                    token.transfer(poster, amount);
+                    self.emit(DareFinalized { dare_id, status: DareStatus::Rejected, winner: poster });
                 }
             } else if (status == DareStatus::Claimed || status == DareStatus::Open)
                 && now > d.deadline.read()
             {
-                let winner = d.poster.read();
-                token.transfer(winner, amount);
+                let poster = d.poster.read();
                 d.status.write(DareStatus::Expired);
+                token.transfer(poster, amount);
                 self.emit(DareFinalized { dare_id, status: DareStatus::Expired, winner: zero_address() });
             } else {
                 assert(false, 'Cannot finalize yet');
             }
+        }
+
+        fn cancel_dare(ref self: ContractState, dare_id: u64) {
+            let caller = get_caller_address();
+            let d      = self.dares.entry(dare_id);
+            assert(d.status.read() == DareStatus::Open, 'Dare not open');
+            assert(caller == d.poster.read(), 'Not the poster');
+
+            let token  = IERC20Dispatcher { contract_address: d.reward_token.read() };
+            let amount = d.reward_amount.read();
+            let poster = d.poster.read();
+
+            // Effects before interactions (checks-effects-interactions)
+            d.status.write(DareStatus::Expired);
+
+            // Transfer escrowed funds back to poster
+            token.transfer(poster, amount);
+
+            self.emit(DareFinalized { dare_id, status: DareStatus::Expired, winner: zero_address() });
         }
 
         fn get_dare(self: @ContractState, dare_id: u64) -> Dare {

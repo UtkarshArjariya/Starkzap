@@ -108,6 +108,13 @@
       },
       {
         "type": "function",
+        "name": "cancel_dare",
+        "inputs": [{ "name": "dare_id", "type": "core::integer::u64" }],
+        "outputs": [],
+        "state_mutability": "external"
+      },
+      {
+        "type": "function",
         "name": "get_dare",
         "inputs": [{ "name": "dare_id", "type": "core::integer::u64" }],
         "outputs": [{ "type": "dare_board::dare_board::Dare" }],
