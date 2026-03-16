@@ -3,9 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, ExternalLink, ThumbsDown, ThumbsUp } from "lucide-react";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import ProofPreview from "@/components/ProofPreview";
 import { useWallet } from "@/context/WalletContext";
 import { STARKSCAN_URL, addressesMatch } from "@/lib/config";
 import { castVote, hasVoterVoted } from "@/lib/contract";
+import { decodeContractError } from "@/lib/utils";
 import type { Dare } from "@/lib/types";
 
 export default function VotePanel({
@@ -67,7 +69,7 @@ export default function VotePanel({
       setVoted(true);
       onVoted?.();
     } catch (voteError) {
-      setError(voteError instanceof Error ? voteError.message : "Vote failed");
+      setError(decodeContractError(voteError));
     } finally {
       setLoading("");
     }
@@ -77,21 +79,13 @@ export default function VotePanel({
     <div className="space-y-4">
       {/* Submitted proof */}
       {dare.proofUrl ? (
-        <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4">
+        <div className="space-y-3">
           <p className="text-xs uppercase tracking-[0.22em] text-slate-500">
             Submitted proof
           </p>
-          <a
-            className="mt-2 inline-flex items-center gap-1.5 break-all text-sm text-cyan-200 transition hover:text-white"
-            href={dare.proofUrl}
-            rel="noreferrer"
-            target="_blank"
-          >
-            {dare.proofUrl}
-            <ExternalLink className="h-4 w-4 shrink-0" />
-          </a>
+          <ProofPreview url={dare.proofUrl} />
           {dare.proofDescription ? (
-            <p className="mt-3 text-sm leading-6 text-slate-300">
+            <p className="text-sm leading-6 text-slate-300">
               {dare.proofDescription}
             </p>
           ) : null}
@@ -157,6 +151,27 @@ export default function VotePanel({
           </div>
         )}
       </div>
+
+      {/* Vote threshold indicator */}
+      {totalVotes < 3 && (
+        <div className="rounded-[1.25rem] border border-white/10 bg-slate-950/50 p-4">
+          <div className="mb-2 flex items-center justify-between text-xs">
+            <span className="text-slate-400">Minimum votes to finalize</span>
+            <span className="font-medium text-slate-300">{totalVotes} / 3</span>
+          </div>
+          <div className="relative h-2 overflow-hidden rounded-full bg-white/[0.06]">
+            <div
+              className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-cyan-500 to-cyan-400 transition-all duration-700"
+              style={{ width: `${Math.round((totalVotes / 3) * 100)}%` }}
+            />
+          </div>
+          <p className="mt-2 text-[11px] text-slate-500">
+            {totalVotes === 0
+              ? "At least 3 votes are needed or the reward returns to the poster."
+              : `${3 - totalVotes} more vote${3 - totalVotes === 1 ? "" : "s"} needed to reach the threshold.`}
+          </p>
+        </div>
+      )}
 
       {/* Poster / claimer restriction notice */}
       {helperMessage ? (

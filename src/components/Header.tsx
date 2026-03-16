@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X, Zap, LogOut, UserRound } from "lucide-react";
+import { AlertTriangle, Menu, X, Zap, LogOut, UserRound } from "lucide-react";
 import { useState } from "react";
 import { shortAddress } from "@/lib/config";
 import { cn } from "@/lib/utils";
@@ -16,10 +16,18 @@ const NAV_ITEMS = [
 export default function Header() {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
-  const { wallet, connect, disconnect } = useWallet();
+  const { wallet, wrongNetwork, expectedNetwork, connect, disconnect } = useWallet();
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/10 bg-slate-950/70 backdrop-blur-xl">
+    <header className="sticky top-0 z-40">
+      {wrongNetwork ? (
+        <div className="flex items-center justify-center gap-2 bg-amber-500/90 px-4 py-2 text-xs font-medium text-slate-950">
+          <AlertTriangle className="h-3.5 w-3.5" />
+          Your wallet is on the wrong network. Please switch to{" "}
+          <span className="font-bold">{expectedNetwork}</span> in your wallet extension.
+        </div>
+      ) : null}
+      <div className="border-b border-white/10 bg-slate-950/70 backdrop-blur-xl">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
         <Link className="flex items-center gap-3 text-white" href="/">
           <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-fuchsia-400/25 via-violet-400/15 to-cyan-300/20 ring-1 ring-white/10">
@@ -132,6 +140,7 @@ export default function Header() {
           </div>
         </div>
       ) : null}
+      </div>
     </header>
   );
 }

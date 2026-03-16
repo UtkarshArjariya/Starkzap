@@ -10,11 +10,14 @@ import {
   useState,
 } from "react";
 import WalletModal from "@/components/WalletModal";
+import { EXPECTED_CHAIN_ID, STARKNET_NETWORK } from "@/lib/config";
 import { disconnectWallet, getConnectedWallet } from "@/lib/starkzap";
 import type { WalletAccount } from "@/lib/types";
 
 type WalletContextValue = {
   wallet: WalletAccount | null;
+  wrongNetwork: boolean;
+  expectedNetwork: string;
   connect: () => Promise<WalletAccount>;
   disconnect: () => Promise<void>;
 };
@@ -63,9 +66,14 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     pendingConnectRef.current = null;
   }, []);
 
+  const wrongNetwork = useMemo(() => {
+    if (!wallet?.chainId) return false;
+    return wallet.chainId !== EXPECTED_CHAIN_ID;
+  }, [wallet?.chainId]);
+
   const value = useMemo<WalletContextValue>(
-    () => ({ wallet, connect, disconnect }),
-    [wallet, connect, disconnect],
+    () => ({ wallet, wrongNetwork, expectedNetwork: STARKNET_NETWORK, connect, disconnect }),
+    [wallet, wrongNetwork, connect, disconnect],
   );
 
   return (

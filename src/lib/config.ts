@@ -1,23 +1,32 @@
 // ─── Network ──────────────────────────────────────────────────────────────────
 
 export const STARKNET_NETWORK =
-  (process.env.NEXT_PUBLIC_STARKNET_NETWORK as "mainnet" | "sepolia") ||
-  "sepolia";
+  process.env.NEXT_PUBLIC_STARKNET_NETWORK as "mainnet" | "sepolia";
+
+export const EXPECTED_CHAIN_ID =
+  STARKNET_NETWORK === "mainnet"
+    ? "0x534e5f4d41494e"       // SN_MAIN
+    : "0x534e5f5345504f4c4941"; // SN_SEPOLIA
 
 // ─── RPC & Contract ───────────────────────────────────────────────────────────
 
-export const RPC_URL =
-  process.env.NEXT_PUBLIC_RPC_URL || "https://starknet-sepolia.drpc.org";
+export const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL!;
 
-export const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "";
+export const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS!;
+
+// Previous contract deployments — dares shown read-only (comma-separated in env)
+export const LEGACY_CONTRACT_ADDRESSES: string[] =
+  (process.env.NEXT_PUBLIC_LEGACY_CONTRACTS || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter((addr) => addr && addr.toLowerCase() !== CONTRACT_ADDRESS.toLowerCase());
 
 // ─── Explorer ─────────────────────────────────────────────────────────────────
 
 export const STARKSCAN_URL =
-  process.env.NEXT_PUBLIC_STARKSCAN_URL ||
-  (STARKNET_NETWORK === "mainnet"
+  STARKNET_NETWORK === "mainnet"
     ? "https://starkscan.co"
-    : `https://${STARKNET_NETWORK}.starkscan.co`);
+    : `https://${STARKNET_NETWORK}.starkscan.co`;
 
 // ─── Tokens ───────────────────────────────────────────────────────────────────
 

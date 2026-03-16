@@ -3,7 +3,6 @@
 import { getStarknet } from "@starknet-io/get-starknet-core";
 import {
   WalletAccount as StarknetWalletAccount,
-  Account,
   RpcProvider,
 } from "starknet";
 import type { StarknetWindowObject } from "@starknet-io/types-js";
@@ -18,12 +17,58 @@ function isSupported(wallet: StarknetWindowObject): boolean {
   return SUPPORTED_WALLET_IDS.some((supported) => id.includes(supported));
 }
 
+/**
+ * Normalize a calldata value to a hex string.
+ * Wallet extensions (Argent X / Braavos) may reject non-hex/non-decimal values
+ * that starknet.js CallData.compile() sometimes produces (e.g. BigInt objects
+ * or oddly-formatted strings for ByteArray chunks).
+ */
+function normalizeCalldataValue(v: unknown): string {
+  if (typeof v === "bigint") return "0x" + v.toString(16);
+  if (typeof v === "number") return "0x" + BigInt(v).toString(16);
+  if (typeof v === "string") {
+    // Already a hex string → pass through
+    if (/^0x[0-9a-fA-F]+$/.test(v)) return v;
+    // Decimal string → convert to hex for consistency
+    if (/^\d+$/.test(v)) return "0x" + BigInt(v).toString(16);
+    // Otherwise return as-is (short strings, etc.)
+    return v;
+  }
+  return String(v);
+}
+
 function makeWallet(
   address: string,
   execute: (calls: WalletCall[]) => Promise<{ transaction_hash: string }>,
   starknet?: unknown,
+  chainId?: string,
 ): WalletAccount {
-  return { address, execute, starknet };
+  // Wrap execute to normalize calldata before sending to wallet extension
+  const safeExecute = (calls: WalletCall[]) => {
+    const normalized = calls.map((call) => ({
+      ...call,
+      calldata: Array.isArray(call.calldata)
+        ? call.calldata.map(normalizeCalldataValue)
+        : call.calldata,
+    }));
+    return execute(normalized);
+  };
+  return { address, execute: safeExecute, starknet, chainId };
+}
+
+async function getWalletChainId(
+  wallet: StarknetWindowObject,
+): Promise<string | undefined> {
+  try {
+    const result = await (
+      wallet as unknown as {
+        request: (args: { type: string }) => Promise<string>;
+      }
+    ).request({ type: "wallet_requestChainId" });
+    return result || undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 // ─── Public helpers ──────────────────────────────────────────────────────────
@@ -95,6 +140,10 @@ export async function connectExtensionWallet(
       );
     }
 
+    const chainId = await getWalletChainId(
+      authorizedWallet as unknown as StarknetWindowObject,
+    );
+
     return makeWallet(
       address,
       async (calls) => {
@@ -102,6 +151,7 @@ export async function connectExtensionWallet(
         return { transaction_hash: result.transaction_hash };
       },
       authorizedWallet,
+      chainId,
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -126,23 +176,6 @@ export async function connectExtensionWallet(
 
     throw new Error(message || "Failed to connect wallet.");
   }
-}
-
-export async function connectWithPrivateKey(
-  address: string,
-  privateKey: string,
-): Promise<WalletAccount> {
-  if (!address || !privateKey) {
-    throw new Error("Address and private key are required.");
-  }
-
-  const provider = new RpcProvider({ nodeUrl: RPC_URL });
-  const account = new Account(provider, address, privateKey);
-
-  return makeWallet(address, async (calls) => {
-    const result = await account.execute(calls as never);
-    return { transaction_hash: result.transaction_hash };
-  });
 }
 
 export async function getConnectedWallet(): Promise<WalletAccount | null> {
@@ -171,6 +204,10 @@ export async function getConnectedWallet(): Promise<WalletAccount | null> {
       return null;
     }
 
+    const chainId = await getWalletChainId(
+      lastWallet as unknown as StarknetWindowObject,
+    );
+
     return makeWallet(
       address,
       async (calls) => {
@@ -178,6 +215,7 @@ export async function getConnectedWallet(): Promise<WalletAccount | null> {
         return { transaction_hash: result.transaction_hash };
       },
       lastWallet,
+      chainId,
     );
   } catch {
     return null;
