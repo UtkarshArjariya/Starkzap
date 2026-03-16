@@ -7,7 +7,7 @@ import {
   uint256,
 } from "starknet";
 import DARE_BOARD_ABI from "@/lib/abi.json";
-import { CONTRACT_ADDRESS, RPC_URL } from "@/lib/config";
+import { CONTRACT_ADDRESS, LEGACY_CONTRACT_ADDRESSES, RPC_URL } from "@/lib/config";
 import type { CreateDareParams, Dare, WalletAccount } from "@/lib/types";
 
 export { TOKENS } from "@/lib/config";
@@ -18,7 +18,7 @@ let provider: RpcProvider | null = null;
 
 function getProvider(): RpcProvider {
   if (!provider) {
-    provider = new RpcProvider({ nodeUrl: RPC_URL });
+    provider = new RpcProvider({ nodeUrl: RPC_URL, blockIdentifier: "latest" });
   }
   return provider;
 }
@@ -145,7 +145,12 @@ function decodeFelt(raw: unknown): string {
   }
 }
 
-function decodeDare(raw: Record<string, unknown>, id?: bigint): Dare {
+function decodeDare(
+  raw: Record<string, unknown>,
+  id?: bigint,
+  contractAddr?: string,
+  legacy?: boolean,
+): Dare {
   return {
     id: BigInt(id ?? raw.id?.toString?.() ?? 0),
     poster: decodeAddress(raw.poster),
@@ -162,7 +167,44 @@ function decodeDare(raw: Record<string, unknown>, id?: bigint): Dare {
     approveVotes: decodeU64(raw.approve_votes),
     rejectVotes: decodeU64(raw.reject_votes),
     status: decodeStatus(raw.status),
+    contractAddress: contractAddr,
+    legacy: legacy ?? false,
   };
+}
+
+// ─── Legacy contract helpers ─────────────────────────────────────────────────
+
+function getLegacyContract(address: string): Contract {
+  return new Contract(DARE_BOARD_ABI, address, getProvider());
+}
+
+async function getLegacyDares(): Promise<Dare[]> {
+  const results: Dare[] = [];
+
+  for (const addr of LEGACY_CONTRACT_ADDRESSES) {
+    try {
+      const legacy = getLegacyContract(addr);
+      const count = Number(BigInt((await legacy.get_dare_count()).toString()));
+      if (count === 0) continue;
+
+      const ids = Array.from({ length: count }, (_, i) => BigInt(i + 1));
+      const dares = await Promise.all(
+        ids.map(async (id) => {
+          try {
+            const raw = (await legacy.get_dare(id)) as Record<string, unknown>;
+            return decodeDare(raw, id, addr, true);
+          } catch {
+            return null;
+          }
+        }),
+      );
+      results.push(...dares.filter((d): d is Dare => d !== null));
+    } catch {
+      // Legacy contract unreachable — skip silently
+    }
+  }
+
+  return results;
 }
 
 // ─── Read functions ───────────────────────────────────────────────────────────
@@ -173,31 +215,138 @@ export async function getDareCount(): Promise<bigint> {
   return BigInt(result.toString());
 }
 
-export async function getDare(dareId: bigint): Promise<Dare> {
-  const contract = getContract();
+export async function getDare(dareId: bigint, contractAddr?: string): Promise<Dare> {
+  const isLegacy = contractAddr && contractAddr.toLowerCase() !== CONTRACT_ADDRESS.toLowerCase();
+  const contract = isLegacy
+    ? getLegacyContract(contractAddr)
+    : getContract();
   const raw = (await contract.get_dare(dareId)) as Record<string, unknown>;
-  return decodeDare(raw, dareId);
+  return decodeDare(raw, dareId, contractAddr ?? CONTRACT_ADDRESS, !!isLegacy);
 }
 
 export async function getAllDares(): Promise<Dare[]> {
-  const count = Number(await getDareCount());
-  if (count === 0) return [];
+  // Fetch from current + legacy contracts in parallel
+  const [currentDares, legacyDares] = await Promise.all([
+    (async () => {
+      const count = Number(await getDareCount());
+      if (count === 0) return [];
+      const ids = Array.from({ length: count }, (_, i) => BigInt(i + 1));
+      return Promise.all(ids.map((id) => getDare(id)));
+    })(),
+    getLegacyDares(),
+  ]);
 
-  const ids = Array.from({ length: count }, (_, i) => BigInt(i + 1));
-  const dares = await Promise.all(ids.map((id) => getDare(id)));
-  return dares.reverse();
+  // Sort all dares by deadline (newest first)
+  return [...currentDares, ...legacyDares].sort(
+    (a, b) => b.deadline - a.deadline,
+  );
+}
+
+export async function getDaresPaginated(
+  page: number,
+  pageSize = 20,
+): Promise<{ dares: Dare[]; total: number; hasMore: boolean }> {
+  // Fetch current contract dares
+  const currentTotal = Number(await getDareCount());
+  const currentDares: Dare[] = [];
+  if (currentTotal > 0) {
+    const endId = Math.max(1, currentTotal - (page - 1) * pageSize);
+    const startId = Math.max(1, endId - pageSize + 1);
+    const ids = Array.from(
+      { length: endId - startId + 1 },
+      (_, i) => BigInt(startId + i),
+    );
+    currentDares.push(
+      ...(await Promise.all(ids.map((id) => getDare(id)))).reverse(),
+    );
+  }
+
+  // On page 1, also fetch legacy dares (they don't paginate — usually small)
+  let legacyDares: Dare[] = [];
+  if (page === 1) {
+    legacyDares = await getLegacyDares();
+  }
+
+  const allDares = [...currentDares, ...legacyDares].sort(
+    (a, b) => b.deadline - a.deadline,
+  );
+
+  const total = currentTotal + legacyDares.length;
+  return { dares: allDares, total, hasMore: currentTotal > page * pageSize };
 }
 
 export async function hasVoterVoted(
   dareId: bigint,
   voter: string,
+  contractAddr?: string,
 ): Promise<boolean> {
-  const contract = getContract();
+  const isLegacy = contractAddr && contractAddr.toLowerCase() !== CONTRACT_ADDRESS.toLowerCase();
+  const contract = isLegacy
+    ? getLegacyContract(contractAddr)
+    : getContract();
   const result = await contract.has_voter_voted(dareId, voter);
   return Boolean(result);
 }
 
 // ─── Write functions ──────────────────────────────────────────────────────────
+
+/**
+ * Encode a short string (≤31 chars) to a hex felt252.
+ *
+ * starknet.js's encodeShortString uses `/./g` which SKIPS newlines,
+ * producing broken hex like "0x...7073\n\n506f...".
+ * This version iterates every character so \n, \r, etc. are encoded correctly.
+ */
+function encodeShortStringFixed(str: string): string {
+  let hex = "";
+  for (let i = 0; i < str.length; i++) {
+    hex += str.charCodeAt(i).toString(16).padStart(2, "0");
+  }
+  return "0x" + (hex || "0");
+}
+
+/**
+ * Convert a string to a Cairo ByteArray calldata array.
+ * Replacement for starknet.js byteArray.byteArrayFromString which
+ * breaks on strings containing newlines (see encodeShortStringFixed).
+ */
+function stringToByteArrayCalldata(str: string): string[] {
+  const chunks: string[] = [];
+  for (let i = 0; i < str.length; i += 31) {
+    chunks.push(str.substring(i, i + 31));
+  }
+
+  let pendingWord: string;
+  let pendingWordLen: number;
+  const encodedData: string[] = [];
+
+  if (chunks.length === 0) {
+    pendingWord = "0x0";
+    pendingWordLen = 0;
+  } else {
+    const last = chunks[chunks.length - 1];
+    if (last.length === 31) {
+      // All chunks are full 31-byte words
+      for (const c of chunks) encodedData.push(encodeShortStringFixed(c));
+      pendingWord = "0x0";
+      pendingWordLen = 0;
+    } else {
+      // Last chunk is partial → becomes pending_word
+      for (let i = 0; i < chunks.length - 1; i++) {
+        encodedData.push(encodeShortStringFixed(chunks[i]));
+      }
+      pendingWord = encodeShortStringFixed(last);
+      pendingWordLen = last.length;
+    }
+  }
+
+  return [
+    String(encodedData.length),
+    ...encodedData,
+    pendingWord,
+    String(pendingWordLen),
+  ];
+}
 
 export async function createDare(
   wallet: WalletAccount,
@@ -217,20 +366,29 @@ export async function createDare(
   const rewardAmount = BigInt(Math.round(amount * 1e18));
   const rewardAmountU256 = uint256.bnToUint256(rewardAmount);
   const deadline = Math.floor(params.deadline.getTime() / 1000);
-  const calldata = new CallData(DARE_BOARD_ABI);
 
-  const createDareCalldata = calldata.compile("create_dare", {
-    title: shortString.encodeShortString(params.title.trim().slice(0, 31)),
-    description: params.description.trim(),
-    reward_token: params.rewardToken,
-    reward_amount: rewardAmountU256,
-    deadline,
-  });
+  // Use our fixed encoder to avoid starknet.js encodeShortString /./g bug
+  // that silently drops newline characters and produces broken hex strings.
+  const titleFelt = encodeShortStringFixed(params.title.trim().slice(0, 31));
 
-  const approveCalldata = CallData.compile({
-    spender: CONTRACT_ADDRESS,
-    amount: rewardAmountU256,
-  });
+  const createDareCalldata = [
+    titleFelt,
+    // ByteArray struct: [data.length, ...data, pending_word, pending_word_len]
+    ...stringToByteArrayCalldata(params.description.trim()),
+    // reward_token
+    params.rewardToken,
+    // reward_amount u256 (low, high)
+    "0x" + BigInt(rewardAmountU256.low.toString()).toString(16),
+    "0x" + BigInt(rewardAmountU256.high.toString()).toString(16),
+    // deadline
+    "0x" + BigInt(deadline).toString(16),
+  ];
+
+  const approveCalldata = [
+    CONTRACT_ADDRESS,
+    "0x" + BigInt(rewardAmountU256.low.toString()).toString(16),
+    "0x" + BigInt(rewardAmountU256.high.toString()).toString(16),
+  ];
 
   const result = await wallet.execute([
     {
@@ -323,6 +481,25 @@ export async function finalizeDare(
     {
       contractAddress: CONTRACT_ADDRESS,
       entrypoint: "finalize_dare",
+      calldata,
+    },
+  ]);
+
+  return result.transaction_hash;
+}
+
+export async function cancelDare(
+  wallet: WalletAccount,
+  dareId: bigint,
+): Promise<string> {
+  const calldata = new CallData(DARE_BOARD_ABI).compile("cancel_dare", {
+    dare_id: dareId,
+  });
+
+  const result = await wallet.execute([
+    {
+      contractAddress: CONTRACT_ADDRESS,
+      entrypoint: "cancel_dare",
       calldata,
     },
   ]);

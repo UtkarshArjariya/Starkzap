@@ -1,22 +1,26 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  AlertTriangle,
   ArrowLeft,
   CheckCircle2,
   ExternalLink,
   Hourglass,
   Trophy,
+  XCircle,
   Zap,
 } from "lucide-react";
 import CountdownTimer from "@/components/CountdownTimer";
 import Header from "@/components/Header";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import ProofModal from "@/components/ProofModal";
+import ShareButton from "@/components/ShareButton";
 import StatusBadge from "@/components/StatusBadge";
 import VotePanel from "@/components/VotePanel";
+import { useToast } from "@/context/ToastContext";
 import { useWallet } from "@/context/WalletContext";
 import {
   STARKSCAN_URL,
@@ -26,12 +30,16 @@ import {
   getTokenSymbol,
   shortAddress,
 } from "@/lib/config";
-import { claimDare, finalizeDare, getDare } from "@/lib/contract";
+import { cancelDare, claimDare, finalizeDare, getDare } from "@/lib/contract";
+import { decodeContractError } from "@/lib/utils";
 import type { Dare } from "@/lib/types";
 
 export default function DarePage() {
   const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
+  const legacyContract = searchParams.get("contract") || undefined;
   const { wallet, connect } = useWallet();
+  const toast = useToast();
   const [dare, setDare] = useState<Dare | null>(null);
   const [loading, setLoading] = useState(true);
   const [txLoading, setTxLoading] = useState("");
@@ -55,7 +63,7 @@ export default function DarePage() {
     }
 
     try {
-      const nextDare = await getDare(dareId);
+      const nextDare = await getDare(dareId, legacyContract);
       setDare(nextDare);
       setError("");
     } catch (loadError) {
@@ -65,7 +73,7 @@ export default function DarePage() {
     } finally {
       setLoading(false);
     }
-  }, [dareId]);
+  }, [dareId, legacyContract]);
 
   useEffect(() => {
     void loadDare();
@@ -81,14 +89,32 @@ export default function DarePage() {
     dare && wallet ? addressesMatch(wallet.address, dare.poster) : false;
   const isClaimer =
     dare && wallet ? addressesMatch(wallet.address, dare.claimer) : false;
+  const isLegacy = !!dare?.legacy;
   const canClaim =
-    !!dare && dare.status === "Open" && !isPoster && now < dare.deadline;
-  const canSubmitProof = !!dare && dare.status === "Claimed" && isClaimer;
+    !!dare && !isLegacy && dare.status === "Open" && !isPoster && now < dare.deadline;
+  const canSubmitProof = !!dare && !isLegacy && dare.status === "Claimed" && isClaimer;
   const canFinalize =
     !!dare &&
+    !isLegacy &&
     ((dare.status === "Voting" && now >= dare.votingEnd) ||
       ((dare.status === "Claimed" || dare.status === "Open") &&
         now > dare.deadline));
+  const canCancel = !!dare && !isLegacy && dare.status === "Open" && isPoster;
+
+  // Expiry warning thresholds
+  const hoursUntilDeadline = dare ? (dare.deadline - now) / 3600 : Infinity;
+  const hoursUntilVotingEnd = dare?.votingEnd
+    ? (dare.votingEnd - now) / 3600
+    : Infinity;
+  const showDeadlineWarning =
+    !!dare &&
+    dare.status !== "Approved" &&
+    dare.status !== "Rejected" &&
+    dare.status !== "Expired" &&
+    hoursUntilDeadline > 0 &&
+    hoursUntilDeadline < 6;
+  const showVotingWarning =
+    !!dare && dare.status === "Voting" && hoursUntilVotingEnd > 0 && hoursUntilVotingEnd < 2;
 
   const handleClaim = async () => {
     if (!dare || dareId === null) {
@@ -102,11 +128,12 @@ export default function DarePage() {
       const activeWallet = wallet ?? (await connect());
       const hash = await claimDare(activeWallet, dareId);
       setTxHash(hash);
+      toast.success("Dare claimed! Now go do it.", { txHash: hash });
       await loadDare();
     } catch (claimError) {
-      setError(
-        claimError instanceof Error ? claimError.message : "Claim failed",
-      );
+      const msg = decodeContractError(claimError);
+      setError(msg);
+      toast.error(msg);
     } finally {
       setTxLoading("");
     }
@@ -124,13 +151,39 @@ export default function DarePage() {
       const activeWallet = wallet ?? (await connect());
       const hash = await finalizeDare(activeWallet, dareId);
       setTxHash(hash);
+      toast.success("Dare finalized — reward distributed.", { txHash: hash });
       await loadDare();
     } catch (finalizeError) {
-      setError(
-        finalizeError instanceof Error
-          ? finalizeError.message
-          : "Finalize failed",
-      );
+      const msg = decodeContractError(finalizeError);
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setTxLoading("");
+    }
+  };
+
+  const handleCancel = async () => {
+    if (!dare || dareId === null) {
+      return;
+    }
+
+    if (!window.confirm("Cancel this dare and reclaim the escrowed reward?")) {
+      return;
+    }
+
+    setError("");
+    setTxLoading("Cancelling dare...");
+
+    try {
+      const activeWallet = wallet ?? (await connect());
+      const hash = await cancelDare(activeWallet, dareId);
+      setTxHash(hash);
+      toast.success("Dare cancelled — reward returned to your wallet.", { txHash: hash });
+      await loadDare();
+    } catch (cancelError) {
+      const msg = decodeContractError(cancelError);
+      setError(msg);
+      toast.error(msg);
     } finally {
       setTxLoading("");
     }
@@ -195,12 +248,15 @@ export default function DarePage() {
                 <div className="inline-flex rounded-full border border-fuchsia-300/15 bg-fuchsia-300/10 px-3 py-1 text-xs uppercase tracking-[0.22em] text-fuchsia-100">
                   Reward {rewardAmount} {symbol}
                 </div>
-                <h1 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+                <h1 className="mt-4 break-words text-2xl font-semibold tracking-tight text-white sm:text-3xl lg:text-4xl">
                   {dare.title}
                 </h1>
                 <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300">
                   {dare.description || "No extra description provided."}
                 </p>
+                <div className="mt-4">
+                  <ShareButton dare={dare} />
+                </div>
               </div>
               <StatusBadge size="lg" status={dare.status} />
             </div>
@@ -230,6 +286,30 @@ export default function DarePage() {
                 />
               ) : null}
             </div>
+
+            {/* Legacy banner */}
+            {isLegacy ? (
+              <div className="mt-6 flex items-center gap-2 rounded-2xl border border-slate-400/20 bg-slate-400/10 px-4 py-3 text-sm text-slate-300">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                This dare is from a previous contract version and is read-only.
+              </div>
+            ) : null}
+
+            {/* Expiry warnings */}
+            {showDeadlineWarning ? (
+              <div className="mt-6 flex items-center gap-2 rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-200">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                Dare expires in {Math.floor(hoursUntilDeadline)}h{" "}
+                {Math.floor((hoursUntilDeadline % 1) * 60)}m
+              </div>
+            ) : null}
+            {showVotingWarning ? (
+              <div className="mt-6 flex items-center gap-2 rounded-2xl border border-orange-400/20 bg-orange-400/10 px-4 py-3 text-sm text-orange-200">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                Voting closes in {Math.floor(hoursUntilVotingEnd * 60)} minutes
+                — cast your vote now.
+              </div>
+            ) : null}
 
             {isFinished ? (
               <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-white/[0.04] px-5 py-4 text-sm text-slate-200">
@@ -264,7 +344,7 @@ export default function DarePage() {
                   )}
                   {txLoading || "Claim this dare"}
                 </button>
-              ) : !wallet && dare.status === "Open" ? (
+              ) : !wallet && !isLegacy && dare.status === "Open" ? (
                 <button
                   className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-white transition hover:bg-white/10"
                   onClick={() => void connect()}
@@ -294,6 +374,21 @@ export default function DarePage() {
                     <Hourglass className="h-4 w-4" />
                   )}
                   {txLoading || "Finalize dare"}
+                </button>
+              ) : null}
+
+              {canCancel ? (
+                <button
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-rose-300/20 bg-rose-300/10 px-4 py-3 text-sm font-semibold text-rose-100 transition hover:bg-rose-300/15 disabled:opacity-60"
+                  disabled={!!txLoading}
+                  onClick={() => void handleCancel()}
+                >
+                  {txLoading === "Cancelling dare..." ? (
+                    <LoadingSpinner size="sm" />
+                  ) : (
+                    <XCircle className="h-4 w-4" />
+                  )}
+                  {txLoading === "Cancelling dare..." ? txLoading : "Cancel dare and reclaim reward"}
                 </button>
               ) : null}
             </div>
@@ -344,7 +439,7 @@ export default function DarePage() {
               </ol>
             </section>
 
-            {dare.status === "Voting" ? (
+            {dare.status === "Voting" && !isLegacy ? (
               <section className="surface-panel px-6 py-6">
                 <p className="text-xs uppercase tracking-[0.22em] text-slate-500">
                   Community vote

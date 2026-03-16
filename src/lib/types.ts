@@ -24,6 +24,10 @@ export interface Dare {
   approveVotes: number;
   rejectVotes: number;
   status: DareStatus;
+  /** The contract this dare lives on */
+  contractAddress?: string;
+  /** True if from a legacy (previous) contract — read-only, no interactions */
+  legacy?: boolean;
 }
 
 export interface CreateDareParams {
@@ -48,6 +52,7 @@ export interface WalletAccount {
   address: string;
   execute(calls: WalletCall[]): Promise<WalletTransactionResult>;
   starknet?: unknown;
+  chainId?: string;
 }
 
 // InstalledWallet is the subset of StarknetWindowObject we work with.
@@ -71,4 +76,6 @@ export interface SerializedDare {
   approveVotes: number;
   rejectVotes: number;
   status: DareStatus;
+  contractAddress?: string;
+  legacy?: boolean;
 }
