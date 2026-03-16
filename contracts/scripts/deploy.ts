@@ -1,102 +1,47 @@
 /**
  * DareBoard Contract Deployment Script
  *
- * Auto-deploys an OZ account (if needed) then declares + deploys DareBoard.
+ * Declares (if needed) + deploys DareBoard via sncast, then updates frontend env.
  *
  * Prerequisites:
- *   1. scarb build  (in /app/contracts)
- *   2. Send STRK to the deployer address printed below
- *   3. Run: npx ts-node --project tsconfig.json deploy.ts
+ *   1. scarb build  (in /contracts)
+ *   2. sncast configured with oz_deployer account
+ *   3. Fund the deployer with STRK
+ *   4. Run: npx ts-node --project tsconfig.json deploy.ts
  */
 
-import { RpcProvider, Account, CallData, stark, json, hash, ec } from "starknet";
+import { json, hash } from "starknet";
+import { execSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 
-const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || "https://starknet-sepolia-rpc.publicnode.com";
+// ── Load .env.local ───────────────────────────────────────────────────────────
+const envFilePath = path.join(__dirname, "../../.env.local");
 
-const PRIVATE_KEY = process.env.DEPLOYER_PRIVATE_KEY;
+if (fs.existsSync(envFilePath)) {
+  const envLines = fs.readFileSync(envFilePath, "utf8").split(/\r?\n/);
+  for (const line of envLines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eqIndex = trimmed.indexOf("=");
+    if (eqIndex === -1) continue;
 
-if (!PRIVATE_KEY) {
-  throw new Error("DEPLOYER_PRIVATE_KEY is required");
-}
+    const key = trimmed.slice(0, eqIndex).trim();
+    const value = trimmed.slice(eqIndex + 1).trim();
 
-// OpenZeppelin SimpleAccount v0.6.1 class hash (already declared on Sepolia)
-const OZ_CLASS_HASH =
-  "0x061dac032f228abef9c6626f995015233097ae253a7f72d68552db02f2971b8f";
-
-function getDeployerAddress(pubKey: string): string {
-  const calldata = CallData.compile({ public_key: pubKey });
-  return hash.calculateContractAddressFromHash(
-    pubKey,
-    OZ_CLASS_HASH,
-    calldata,
-    "0x0"
-  );
-}
-
-async function waitForFunds(
-  provider: RpcProvider,
-  address: string,
-  minStrk = BigInt("10000000000000000") // 0.01 STRK
-): Promise<void> {
-  const STRK_TOKEN =
-    "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d";
-
-  console.log("Waiting for STRK funds at", address, "...");
-  for (let i = 0; i < 360; i++) {  // 30 min at 5s intervals
-    try {
-      const res = await provider.callContract({
-        contractAddress: STRK_TOKEN,
-        entrypoint: "balanceOf",
-        calldata: [address],
-      });
-      const balance = BigInt(res[0]);
-      if (balance >= minStrk) {
-        console.log(
-          `  Balance: ${(Number(balance) / 1e18).toFixed(4)} STRK ✅`
-        );
-        return;
-      }
-      process.stdout.write(
-        `  ${(Number(balance) / 1e18).toFixed(6)} STRK — waiting...\r`
-      );
-    } catch {}
-    await new Promise((r) => setTimeout(r, 5000));
+    if (!(key in process.env)) {
+      process.env[key] = value;
+    }
   }
-  throw new Error("Timed out waiting for funds. Please fund the address and retry.");
 }
 
-async function ensureAccountDeployed(
-  provider: RpcProvider,
-  address: string,
-  pubKey: string,
-  privateKey: string
-): Promise<Account> {
-  // Check if already deployed
-  try {
-    await provider.getClassHashAt(address);
-    console.log("Account already deployed at", address);
-    return new Account(provider, address, privateKey);
-  } catch {
-    // Not deployed — deploy it
-  }
+// sncast reads account + RPC URL from contracts/snfoundry.toml
+const CONTRACTS_DIR = path.join(__dirname, "..");
 
-  console.log("Deploying OZ account at", address, "...");
-  const account = new Account(provider, address, privateKey);
-  const calldata = CallData.compile({ public_key: pubKey });
-
-  const { transaction_hash, contract_address } = await account.deployAccount({
-    classHash: OZ_CLASS_HASH,
-    constructorCalldata: calldata,
-    addressSalt: pubKey,
-    contractAddress: address,
-  });
-
-  console.log("  Deploy tx:", transaction_hash);
-  await provider.waitForTransaction(transaction_hash);
-  console.log("  Account deployed ✅");
-  return new Account(provider, contract_address, privateKey);
+function runSncast(args: string): string {
+  const cmd = `sncast ${args}`;
+  console.log(`  $ ${cmd}\n`);
+  return execSync(cmd, { encoding: "utf-8", timeout: 300_000, cwd: CONTRACTS_DIR });
 }
 
 async function deploy() {
@@ -104,120 +49,162 @@ async function deploy() {
   console.log("  DareBoard Deployment Script  ");
   console.log("==============================\n");
 
-  const provider = new RpcProvider({ nodeUrl: RPC_URL });
-
-  // Derive public key + address
-  const pubKey = ec.starkCurve.getStarkKey(PRIVATE_KEY);
-  const deployerAddress = getDeployerAddress(pubKey);
-
-  console.log("Deployer address :", deployerAddress);
-  console.log("Public key       :", pubKey);
-  console.log(
-    "Fund this address with STRK on Starknet Sepolia if not already funded.\n"
-  );
-
-  // ── Wait for funds ─────────────────────────────────────────────────────────
-  await waitForFunds(provider, deployerAddress);
-
-  // ── Ensure account is deployed ────────────────────────────────────────────
-  const account = await ensureAccountDeployed(
-    provider,
-    deployerAddress,
-    pubKey,
-    PRIVATE_KEY
-  );
-
-  // ── Read compiled artifacts ───────────────────────────────────────────────
-  const contractsDir = path.join(__dirname, "..");
+  console.log("Config  : contracts/snfoundry.toml");
+  // ── Read compiled artifacts ────────────────────────────────────────────────
   const sierraPath = path.join(
-    contractsDir,
-    "target/dev/dare_board_DareBoard.contract_class.json"
+    CONTRACTS_DIR,
+    "target/dev/dare_board_DareBoard.contract_class.json",
+  );
+  const compiledPath = path.join(
+    CONTRACTS_DIR,
+    "target/dev/dare_board_DareBoard.compiled_contract_class.json",
   );
 
-  if (!fs.existsSync(sierraPath)) {
-    console.error("Sierra artifact not found. Run: scarb build");
+  if (!fs.existsSync(sierraPath) || !fs.existsSync(compiledPath)) {
+    console.error("Compiled artifacts not found. Run: scarb build");
     process.exit(1);
   }
 
   const sierra = json.parse(fs.readFileSync(sierraPath).toString());
+  if (typeof sierra.abi === "string") sierra.abi = JSON.parse(sierra.abi);
 
-  // ── Declare ───────────────────────────────────────────────────────────────
-  // Do NOT pass casm — let the node compile Sierra to CASM to avoid hash mismatch
-  console.log("\nDeclaring contract class...");
+  // ── Declare ────────────────────────────────────────────────────────────────
   let classHash: string;
-  try {
-    const declareResponse = await account.declare({ contract: sierra });
-    await provider.waitForTransaction(declareResponse.transaction_hash);
-    classHash = declareResponse.class_hash;
-    console.log("Class hash:", classHash, "✅");
-  } catch (e: any) {
-    const msg = e.message || JSON.stringify(e);
-    if (
-      msg.includes("already declared") ||
-      msg.includes("ClassAlreadyDeclared") ||
-      msg.includes("DuplicateTx") ||
-      msg.includes("StarknetErrorCode.CLASS_ALREADY_DECLARED")
-    ) {
-      classHash = hash.computeSierraContractClassHash(sierra);
-      console.log("Already declared. Class hash:", classHash, "✅");
-    } else {
-      throw e;
+  const predeclaredClassHash = process.env.CONTRACT_CLASS_HASH;
+
+  if (predeclaredClassHash) {
+    classHash = predeclaredClassHash;
+    console.log("Using existing class hash:", classHash, "\n");
+  } else {
+    console.log("Declaring contract class...");
+    try {
+      const declareOutput = runSncast(
+        `-w --wait-timeout 300 declare --contract-name DareBoard`,
+      );
+      // Parse class_hash from sncast output
+      const classHashMatch = declareOutput.match(
+        /[Cc]lass[_ ][Hh]ash:\s*(0x[0-9a-fA-F]+)/,
+      );
+      if (!classHashMatch) {
+        // Compute it from sierra
+        classHash = hash.computeSierraContractClassHash(sierra);
+        console.log("  Computed class hash:", classHash);
+      } else {
+        classHash = classHashMatch[1];
+        console.log("  Declared class hash:", classHash);
+      }
+    } catch (e: any) {
+      const msg = e?.stderr || e?.stdout || e?.message || String(e);
+      if (
+        msg.includes("already declared") ||
+        msg.includes("ClassAlreadyDeclared") ||
+        msg.includes("StarkClassAlreadyDeclared")
+      ) {
+        classHash = hash.computeSierraContractClassHash(sierra);
+        console.log("  Already declared. Class hash:", classHash);
+      } else {
+        throw new Error(`Declare failed: ${msg}`);
+      }
     }
   }
 
-  // ── Deploy DareBoard ───────────────────────────────────────────────────────
-  console.log("\nDeploying DareBoard contract...");
-  const constructorCalldata = CallData.compile({ owner: deployerAddress });
-  const deployResponse = await account.deployContract({
-    classHash,
-    constructorCalldata,
-    salt: stark.randomAddress(),
-  });
-  await provider.waitForTransaction(deployResponse.transaction_hash);
-  const contractAddress = deployResponse.contract_address;
+  // ── Get deployer address from sncast account ──────────────────────────────
+  let deployerAddress: string;
+  try {
+    const accountsOutput = execSync("sncast account list", {
+      encoding: "utf-8",
+    });
+    const addrMatch = accountsOutput.match(
+      /address:\s*(0x[0-9a-fA-F]+)/,
+    );
+    deployerAddress = addrMatch
+      ? addrMatch[1]
+      : "0x1a0d24240a41d0cbee5489d0d0503746282276f814da7cc611588d262789f8";
+  } catch {
+    deployerAddress =
+      "0x1a0d24240a41d0cbee5489d0d0503746282276f814da7cc611588d262789f8";
+  }
+  console.log("Deployer address:", deployerAddress, "\n");
 
-  console.log("\n✅ Contract deployed at :", contractAddress);
-  console.log("   Tx hash             :", deployResponse.transaction_hash);
+  // ── Deploy ────────────────────────────────────────────────────────────────
+  console.log("Deploying DareBoard contract...");
+  const deployOutput = runSncast(
+    `-w --wait-timeout 300 deploy --class-hash ${classHash} --constructor-calldata ${deployerAddress} --unique`,
+  );
+
+  // Parse contract address and transaction hash from sncast output
+  // sncast outputs "Contract Address: 0x..." or "contract_address: 0x..."
+  const addrMatch = deployOutput.match(
+    /[Cc]ontract[_ ][Aa]ddress:\s*(0x[0-9a-fA-F]+)/,
+  );
+  const txMatch = deployOutput.match(
+    /[Tt]ransaction[_ ][Hh]ash:\s*(0x[0-9a-fA-F]+)/,
+  );
+
+  if (!addrMatch) {
+    console.log("sncast output:\n", deployOutput);
+    throw new Error("Could not parse contract address from sncast output");
+  }
+
+  const contractAddress = addrMatch[1];
+  const txHash = txMatch ? txMatch[1] : "unknown";
+
+  console.log("\n  Contract deployed at :", contractAddress);
+  console.log("  Tx hash             :", txHash);
   console.log(
-    "   Starkscan           :",
-    `https://sepolia.starkscan.co/contract/${contractAddress}`
+    "  Voyager             :",
+    `https://sepolia.voyager.online/contract/${contractAddress}`,
   );
 
   // ── Write ABI to frontend ─────────────────────────────────────────────────
   const abiDest = path.join(__dirname, "../../src/lib/abi.json");
   fs.writeFileSync(abiDest, JSON.stringify(sierra.abi, null, 2));
-  console.log("\n✅ ABI written to", abiDest);
+  console.log("\n  ABI written to", abiDest);
 
-  // ── Update frontend .env.local ─────────────────────────────────────────────
-  const envPath = path.join(__dirname, "../../.env.local");
-  let envContent = fs.existsSync(envPath)
-    ? fs.readFileSync(envPath, "utf8")
+  // ── Update .env.local ─────────────────────────────────────────────────────
+  let envContent = fs.existsSync(envFilePath)
+    ? fs.readFileSync(envFilePath, "utf8")
     : "";
 
+  // Update or add NEXT_PUBLIC_CONTRACT_ADDRESS
   if (envContent.includes("NEXT_PUBLIC_CONTRACT_ADDRESS=")) {
     envContent = envContent.replace(
       /NEXT_PUBLIC_CONTRACT_ADDRESS=.*/,
-      `NEXT_PUBLIC_CONTRACT_ADDRESS=${contractAddress}`
+      `NEXT_PUBLIC_CONTRACT_ADDRESS=${contractAddress}`,
     );
   } else {
     envContent += `\nNEXT_PUBLIC_CONTRACT_ADDRESS=${contractAddress}\n`;
   }
 
+  // Update or add CONTRACT_CLASS_HASH
+  if (envContent.match(/^CONTRACT_CLASS_HASH=/m)) {
+    envContent = envContent.replace(
+      /^CONTRACT_CLASS_HASH=.*/m,
+      `CONTRACT_CLASS_HASH=${classHash}`,
+    );
+  } else if (envContent.includes("# CONTRACT_CLASS_HASH")) {
+    envContent = envContent.replace(
+      /# CONTRACT_CLASS_HASH.*/,
+      `CONTRACT_CLASS_HASH=${classHash}`,
+    );
+  } else {
+    envContent += `CONTRACT_CLASS_HASH=${classHash}\n`;
+  }
+
+  // Update or add DEPLOYER_ACCOUNT_ADDRESS
   if (envContent.includes("DEPLOYER_ACCOUNT_ADDRESS=")) {
     envContent = envContent.replace(
       /DEPLOYER_ACCOUNT_ADDRESS=.*/,
-      `DEPLOYER_ACCOUNT_ADDRESS=${deployerAddress}`
+      `DEPLOYER_ACCOUNT_ADDRESS=${deployerAddress}`,
     );
   } else {
     envContent += `DEPLOYER_ACCOUNT_ADDRESS=${deployerAddress}\n`;
   }
 
-  fs.writeFileSync(envPath, envContent);
-  console.log("✅ NEXT_PUBLIC_CONTRACT_ADDRESS updated in .env.local");
+  fs.writeFileSync(envFilePath, envContent);
+  console.log("  .env.local updated\n");
 
-  console.log("\n🚀 Next steps:");
-  console.log("   sudo supervisorctl restart frontend");
-  console.log("   Then open the app — demo mode OFF, live contract active!\n");
+  console.log("Done! Restart the frontend to use the new contract.\n");
 }
 
 deploy().catch((err) => {

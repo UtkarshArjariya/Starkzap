@@ -1,3 +1,3 @@
 [sncast.default]
 account = "oz_deployer"
-url = "https://api.cartridge.gg/x/starknet/sepolia"
+url = "https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_10/FpjFg5i2ZpZbNz7lXotzq/"
