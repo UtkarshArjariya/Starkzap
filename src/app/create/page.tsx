@@ -7,8 +7,10 @@ import { ArrowLeft, CheckCircle2, ExternalLink, Lock } from "lucide-react";
 import Header from "@/components/Header";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { useWallet } from "@/context/WalletContext";
+import { useToast } from "@/context/ToastContext";
 import { STARKSCAN_URL, getTokenSymbol } from "@/lib/config";
 import { TOKENS, createDare } from "@/lib/contract";
+import { decodeContractError } from "@/lib/utils";
 
 function getMinDateTime(): string {
   const date = new Date(Date.now() + 3600 * 1000 + 5 * 60 * 1000);
@@ -18,6 +20,7 @@ function getMinDateTime(): string {
 export default function CreatePage() {
   const router = useRouter();
   const { wallet, connect } = useWallet();
+  const toast = useToast();
   const [form, setForm] = useState<{
     title: string;
     description: string;
@@ -81,9 +84,12 @@ export default function CreatePage() {
         deadline,
       });
       setTxHash(hash);
+      toast.success("Dare posted!", { txHash: hash });
       window.setTimeout(() => router.push("/"), 2600);
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Transaction failed");
+      const msg = decodeContractError(submitError);
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }

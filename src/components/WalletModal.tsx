@@ -128,7 +128,7 @@ export default function WalletModal({ onConnect, onClose }: WalletModalProps) {
   const isConnecting = connectingId !== null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:px-4">
       {/* Backdrop */}
       <button
         aria-label="Close wallet modal"
@@ -137,7 +137,7 @@ export default function WalletModal({ onConnect, onClose }: WalletModalProps) {
       />
 
       {/* Card */}
-      <div className="relative z-10 w-full max-w-md overflow-hidden rounded-[1.5rem] border border-white/10 bg-slate-950/95 shadow-2xl shadow-black/60">
+      <div className="relative z-10 max-h-[90vh] w-full overflow-hidden overflow-y-auto rounded-t-[1.5rem] border border-white/10 bg-slate-950/95 shadow-2xl shadow-black/60 sm:max-w-md sm:rounded-[1.5rem]">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
           <div>

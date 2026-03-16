@@ -50,10 +50,10 @@ export default function ProofModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:px-4">
       <button className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative z-10 w-full max-w-lg rounded-[1.75rem] border border-white/10 bg-slate-950/95 p-6 shadow-glow">
+      <div className="relative z-10 max-h-[90vh] w-full overflow-y-auto rounded-t-[1.75rem] border border-white/10 bg-slate-950/95 p-6 shadow-glow sm:max-w-lg sm:rounded-[1.75rem]">
         <button className="absolute right-4 top-4 text-slate-500 transition hover:text-white" onClick={onClose}>
           <X className="h-5 w-5" />
         </button>
