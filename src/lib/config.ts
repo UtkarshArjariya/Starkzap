@@ -1,3 +1,5 @@
+import { sepoliaTokens, mainnetTokens } from "starkzap";
+
 // ─── Network ──────────────────────────────────────────────────────────────────
 
 export const STARKNET_NETWORK =
@@ -11,6 +13,12 @@ export const EXPECTED_CHAIN_ID =
 // ─── RPC & Contract ───────────────────────────────────────────────────────────
 
 export const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL!;
+
+export const RPC_URLS = [
+  process.env.NEXT_PUBLIC_RPC_URL!,                          // Alchemy (primary)
+  "https://starknet-sepolia.public.blastapi.io",             // BlastAPI
+  "https://free-rpc.nethermind.io/sepolia-juno",             // Nethermind
+];
 
 export const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS!;
 
@@ -30,15 +38,45 @@ export const STARKSCAN_URL =
 
 // ─── Tokens ───────────────────────────────────────────────────────────────────
 
+const _network = (process.env.NEXT_PUBLIC_STARKNET_NETWORK ?? "sepolia") as "sepolia" | "mainnet";
+const _tokenPresets = _network === "mainnet" ? mainnetTokens : sepoliaTokens;
+
+// Hardcoded fallback addresses (same on both networks for STRK/ETH)
+const _STRK_FALLBACK = "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d";
+const _ETH_FALLBACK  = "0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7";
+
 export const TOKENS = {
-  STRK: "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d",
-  ETH: "0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7",
+  STRK: String(_tokenPresets.STRK?.address ?? _STRK_FALLBACK),
+  ETH:  String(_tokenPresets.ETH?.address  ?? _ETH_FALLBACK),
+  USDC: String(_tokenPresets.USDC?.address ?? ""),
+  USDT: String(_tokenPresets.USDT?.address ?? ""),
+  WBTC: String(_tokenPresets.WBTC?.address ?? ""),
 } as const;
 
-export const TOKEN_SYMBOLS: Record<string, string> = {
-  [TOKENS.STRK.toLowerCase()]: "STRK",
-  [TOKENS.ETH.toLowerCase()]: "ETH",
-};
+// Build TOKEN_SYMBOLS from presets.
+// Only include entries where an address and symbol are present.
+export const TOKEN_SYMBOLS: Record<string, string> = Object.fromEntries(
+  Object.values(_tokenPresets)
+    .filter((t) => t.address && t.symbol)
+    .map((t) => [String(t.address).toLowerCase(), t.symbol]),
+);
+
+// Ensure the hardcoded fallbacks are always present even if presets differ
+TOKEN_SYMBOLS[_STRK_FALLBACK] = "STRK";
+TOKEN_SYMBOLS[_ETH_FALLBACK]  = "ETH";
+
+// ─── Token decimals ───────────────────────────────────────────────────────────
+
+const _TOKEN_DECIMALS: Record<string, number> = Object.fromEntries(
+  Object.values(_tokenPresets)
+    .filter((t) => t.address)
+    .map((t) => [String(t.address).toLowerCase(), t.decimals]),
+);
+
+export function getTokenDecimals(address: string): number {
+  if (!address) return 18;
+  return _TOKEN_DECIMALS[address.toLowerCase()] ?? 18;
+}
 
 export const ZERO_ADDRESS = `0x${"0".repeat(64)}`;
 
@@ -88,11 +126,13 @@ export function shortAddress(
 
 export function formatAmount(
   value: bigint | string | number | null | undefined,
+  decimals = 18,
 ): string {
   if (value === null || value === undefined) return "0";
 
   try {
-    const amount = Number(BigInt(value.toString())) / 1e18;
+    const divisor = 10 ** decimals;
+    const amount = Number(BigInt(value.toString())) / divisor;
     return amount.toFixed(amount < 0.01 ? 6 : 2);
   } catch {
     return "0";

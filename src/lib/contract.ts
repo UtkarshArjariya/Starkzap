@@ -7,29 +7,48 @@ import {
   uint256,
 } from "starknet";
 import DARE_BOARD_ABI from "@/lib/abi.json";
-import { CONTRACT_ADDRESS, LEGACY_CONTRACT_ADDRESSES, RPC_URL } from "@/lib/config";
+import { CONTRACT_ADDRESS, getTokenDecimals, LEGACY_CONTRACT_ADDRESSES, RPC_URLS } from "@/lib/config";
 import type { CreateDareParams, Dare, WalletAccount } from "@/lib/types";
 
 export { TOKENS } from "@/lib/config";
 
 // ─── Provider / Contract singletons ──────────────────────────────────────────
 
-let provider: RpcProvider | null = null;
+let cachedProvider: RpcProvider | null = null;
 
-function getProvider(): RpcProvider {
-  if (!provider) {
-    provider = new RpcProvider({ nodeUrl: RPC_URL, blockIdentifier: "latest" });
+async function getProvider(): Promise<RpcProvider> {
+  // Return cached provider if still reachable
+  if (cachedProvider) {
+    try {
+      await cachedProvider.getChainId();
+      return cachedProvider;
+    } catch {
+      cachedProvider = null; // cached one failed — fall through to retry list
+    }
   }
-  return provider;
+
+  for (const url of RPC_URLS) {
+    if (!url) continue;
+    try {
+      const p = new RpcProvider({ nodeUrl: url, blockIdentifier: "latest" });
+      await p.getChainId();
+      cachedProvider = p;
+      return p;
+    } catch {
+      continue;
+    }
+  }
+
+  throw new Error("All RPC endpoints unreachable");
 }
 
-function getContract(): Contract {
+async function getContract(): Promise<Contract> {
   if (!CONTRACT_ADDRESS) {
     throw new Error(
       "NEXT_PUBLIC_CONTRACT_ADDRESS is not set. Add it to your .env.local file.",
     );
   }
-  return new Contract(DARE_BOARD_ABI, CONTRACT_ADDRESS, getProvider());
+  return new Contract(DARE_BOARD_ABI, CONTRACT_ADDRESS, await getProvider());
 }
 
 // ─── Decoders ─────────────────────────────────────────────────────────────────
@@ -174,8 +193,8 @@ function decodeDare(
 
 // ─── Legacy contract helpers ─────────────────────────────────────────────────
 
-function getLegacyContract(address: string): Contract {
-  return new Contract(DARE_BOARD_ABI, address, getProvider());
+async function getLegacyContract(address: string): Promise<Contract> {
+  return new Contract(DARE_BOARD_ABI, address, await getProvider());
 }
 
 async function getLegacyDares(): Promise<Dare[]> {
@@ -183,7 +202,7 @@ async function getLegacyDares(): Promise<Dare[]> {
 
   for (const addr of LEGACY_CONTRACT_ADDRESSES) {
     try {
-      const legacy = getLegacyContract(addr);
+      const legacy = await getLegacyContract(addr);
       const count = Number(BigInt((await legacy.get_dare_count()).toString()));
       if (count === 0) continue;
 
@@ -210,7 +229,7 @@ async function getLegacyDares(): Promise<Dare[]> {
 // ─── Read functions ───────────────────────────────────────────────────────────
 
 export async function getDareCount(): Promise<bigint> {
-  const contract = getContract();
+  const contract = await getContract();
   const result = await contract.get_dare_count();
   return BigInt(result.toString());
 }
@@ -218,8 +237,8 @@ export async function getDareCount(): Promise<bigint> {
 export async function getDare(dareId: bigint, contractAddr?: string): Promise<Dare> {
   const isLegacy = contractAddr && contractAddr.toLowerCase() !== CONTRACT_ADDRESS.toLowerCase();
   const contract = isLegacy
-    ? getLegacyContract(contractAddr)
-    : getContract();
+    ? await getLegacyContract(contractAddr)
+    : await getContract();
   const raw = (await contract.get_dare(dareId)) as Record<string, unknown>;
   return decodeDare(raw, dareId, contractAddr ?? CONTRACT_ADDRESS, !!isLegacy);
 }
@@ -282,8 +301,8 @@ export async function hasVoterVoted(
 ): Promise<boolean> {
   const isLegacy = contractAddr && contractAddr.toLowerCase() !== CONTRACT_ADDRESS.toLowerCase();
   const contract = isLegacy
-    ? getLegacyContract(contractAddr)
-    : getContract();
+    ? await getLegacyContract(contractAddr)
+    : await getContract();
   const result = await contract.has_voter_voted(dareId, voter);
   return Boolean(result);
 }
@@ -363,7 +382,8 @@ export async function createDare(
     throw new Error("Reward amount must be greater than 0.");
   }
 
-  const rewardAmount = BigInt(Math.round(amount * 1e18));
+  const decimals = getTokenDecimals(params.rewardToken);
+  const rewardAmount = BigInt(Math.round(amount * (10 ** decimals)));
   const rewardAmountU256 = uint256.bnToUint256(rewardAmount);
   const deadline = Math.floor(params.deadline.getTime() / 1000);
 
