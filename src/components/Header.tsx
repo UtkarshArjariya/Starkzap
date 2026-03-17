@@ -2,20 +2,23 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AlertTriangle, Menu, X, Zap, LogOut, UserRound } from "lucide-react";
+import { AlertTriangle, Menu, Moon, Sun, Trophy, X, Zap, LogOut, UserRound } from "lucide-react";
 import { useState } from "react";
 import { shortAddress } from "@/lib/config";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/context/ThemeContext";
 import { useWallet } from "@/context/WalletContext";
 
 const NAV_ITEMS = [
   { href: "/", label: "Feed" },
   { href: "/create", label: "Post Dare" },
+  { href: "/leaderboard", label: "Leaderboard" },
 ];
 
 export default function Header() {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+  const { theme, toggle: toggleTheme } = useTheme();
   const { wallet, wrongNetwork, expectedNetwork, connect, disconnect } = useWallet();
 
   return (
@@ -71,6 +74,13 @@ export default function Header() {
         </nav>
 
         <div className="hidden items-center gap-2 md:flex">
+          <button
+            aria-label="Toggle theme"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-300 transition hover:border-cyan-300/30 hover:text-white"
+            onClick={toggleTheme}
+          >
+            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </button>
           {wallet ? (
             <>
               <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 font-mono text-xs text-slate-200">
@@ -137,6 +147,15 @@ export default function Header() {
                 Connect wallet
               </button>
             )}
+
+            <button
+              aria-label="Toggle theme"
+              className="mt-2 flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300 transition hover:text-white"
+              onClick={toggleTheme}
+            >
+              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              {theme === "dark" ? "Light mode" : "Dark mode"}
+            </button>
           </div>
         </div>
       ) : null}
