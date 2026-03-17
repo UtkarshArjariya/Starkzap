@@ -3,13 +3,15 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { ArrowLeft, CheckCircle2, ExternalLink, Lock } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ExternalLink, Lock, Tag } from "lucide-react";
 import Header from "@/components/Header";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { useWallet } from "@/context/WalletContext";
 import { useToast } from "@/context/ToastContext";
 import { STARKSCAN_URL, getTokenSymbol } from "@/lib/config";
 import { TOKENS, createDare } from "@/lib/contract";
+import { CATEGORIES, appendTags } from "@/lib/categories";
+import { DARE_TEMPLATES } from "@/lib/dareTemplates";
 import { decodeContractError } from "@/lib/utils";
 
 function getMinDateTime(): string {
@@ -34,6 +36,7 @@ export default function CreatePage() {
     rewardAmount: "",
     deadline: "",
   });
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [txHash, setTxHash] = useState("");
   const [error, setError] = useState("");
@@ -42,6 +45,24 @@ export default function CreatePage() {
 
   const updateField = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
+  };
+
+  const applyTemplate = (tpl: typeof DARE_TEMPLATES[number]) => {
+    const deadlineDate = new Date(Date.now() + tpl.suggestedDays * 86400_000);
+    setForm({
+      title: tpl.title,
+      description: tpl.description,
+      rewardToken: TOKENS.STRK,
+      rewardAmount: tpl.suggestedRewardStrk,
+      deadline: deadlineDate.toISOString().slice(0, 16),
+    });
+    setSelectedTags([tpl.category]);
+  };
+
+  const toggleTag = (tag: string) => {
+    setSelectedTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : prev.length < 3 ? [...prev, tag] : prev,
+    );
   };
 
   const handleSubmit = async () => {
@@ -76,9 +97,10 @@ export default function CreatePage() {
 
     try {
       const activeWallet = wallet ?? (await connect());
+      const finalDescription = appendTags(form.description.trim(), selectedTags);
       const hash = await createDare(activeWallet, {
         title: form.title.trim(),
-        description: form.description.trim(),
+        description: finalDescription,
         rewardToken: form.rewardToken,
         rewardAmount: form.rewardAmount,
         deadline,
@@ -104,6 +126,21 @@ export default function CreatePage() {
           <ArrowLeft className="h-4 w-4" />
           Back to feed
         </Link>
+
+        {/* Templates */}
+        <div className="mt-6 -mx-4 flex gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-3 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-6">
+          {DARE_TEMPLATES.map((tpl) => (
+            <button
+              key={tpl.title}
+              className="flex shrink-0 flex-col items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4 text-center transition hover:border-fuchsia-300/20 hover:bg-white/[0.08] sm:w-auto w-32"
+              onClick={() => applyTemplate(tpl)}
+            >
+              <span className="text-2xl">{tpl.emoji}</span>
+              <span className="text-xs font-medium text-slate-200 line-clamp-2">{tpl.title}</span>
+              <span className="text-[10px] text-slate-500">{tpl.suggestedRewardStrk} STRK</span>
+            </button>
+          ))}
+        </div>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
           <section className="surface-panel px-6 py-6">
@@ -168,6 +205,9 @@ export default function CreatePage() {
                     >
                       <option value={TOKENS.STRK}>STRK</option>
                       <option value={TOKENS.ETH}>ETH</option>
+                      {TOKENS.USDC ? <option value={TOKENS.USDC}>USDC</option> : null}
+                      {TOKENS.USDT ? <option value={TOKENS.USDT}>USDT</option> : null}
+                      {TOKENS.WBTC ? <option value={TOKENS.WBTC}>WBTC</option> : null}
                     </select>
                   </div>
 
@@ -195,6 +235,29 @@ export default function CreatePage() {
                     value={form.deadline}
                   />
                   <p className="mt-2 text-xs text-slate-500">Minimum one hour from now to avoid accidental instant expiry.</p>
+                </div>
+
+                <div>
+                  <label className="mb-2 flex items-center gap-1.5 text-xs uppercase tracking-[0.18em] text-slate-500">
+                    <Tag className="h-3 w-3" />
+                    Categories (optional, max 3)
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {CATEGORIES.map((cat) => (
+                      <button
+                        key={cat.name}
+                        type="button"
+                        className={
+                          selectedTags.includes(cat.name)
+                            ? "rounded-full bg-fuchsia-500/20 border border-fuchsia-300/30 px-3 py-1.5 text-xs font-medium text-fuchsia-100 transition"
+                            : "rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-400 transition hover:border-white/20 hover:text-white"
+                        }
+                        onClick={() => toggleTag(cat.name)}
+                      >
+                        {cat.emoji} {cat.name}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 {error ? (

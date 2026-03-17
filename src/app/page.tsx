@@ -4,8 +4,10 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, Plus, RefreshCcw, Sparkles, Zap } from "lucide-react";
 import DareCard, { DareCardSkeleton } from "@/components/DareCard";
+import DareOfTheDay from "@/components/DareOfTheDay";
 import Header from "@/components/Header";
 import { getDaresPaginated } from "@/lib/contract";
+import { CATEGORIES, extractTags } from "@/lib/categories";
 
 import type { Dare, DareStatus } from "@/lib/types";
 
@@ -28,6 +30,7 @@ export default function FeedPage() {
   const [hasMore, setHasMore] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [filter, setFilter] = useState<DareStatus | "All">("All");
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState("");
@@ -81,9 +84,15 @@ export default function FeedPage() {
   }, [loadPage1]);
 
   const filteredDares = useMemo(() => {
-    if (filter === "All") return dares;
-    return dares.filter((dare) => dare.status === filter);
-  }, [dares, filter]);
+    let result = dares;
+    if (filter !== "All") {
+      result = result.filter((dare) => dare.status === filter);
+    }
+    if (categoryFilter) {
+      result = result.filter((dare) => extractTags(dare.description).includes(categoryFilter));
+    }
+    return result;
+  }, [dares, filter, categoryFilter]);
 
   return (
     <div className="min-h-screen">
@@ -145,6 +154,9 @@ export default function FeedPage() {
           </div>
         </section>
 
+        {/* Dare of the Day */}
+        <DareOfTheDay />
+
         {/* Filters */}
         <section className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-4">
           <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
@@ -164,6 +176,33 @@ export default function FeedPage() {
           </div>
 
           <p className="text-sm text-slate-500">Auto-refreshes every 15 s</p>
+        </section>
+
+        {/* Category filter chips */}
+        <section className="mt-3 -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
+          <button
+            className={
+              categoryFilter === null
+                ? "shrink-0 rounded-full bg-fuchsia-500/20 border border-fuchsia-300/30 px-3 py-1.5 text-xs font-medium text-fuchsia-100"
+                : "shrink-0 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-400 transition hover:text-white"
+            }
+            onClick={() => setCategoryFilter(null)}
+          >
+            All categories
+          </button>
+          {CATEGORIES.map((cat) => (
+            <button
+              key={cat.name}
+              className={
+                categoryFilter === cat.name
+                  ? "shrink-0 rounded-full bg-fuchsia-500/20 border border-fuchsia-300/30 px-3 py-1.5 text-xs font-medium text-fuchsia-100"
+                  : "shrink-0 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-400 transition hover:text-white"
+              }
+              onClick={() => setCategoryFilter(cat.name)}
+            >
+              {cat.emoji} {cat.name}
+            </button>
+          ))}
         </section>
 
         {/* Grid */}

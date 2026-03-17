@@ -1,8 +1,9 @@
 "use client";
 
+import confetti from "canvas-confetti";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -18,6 +19,7 @@ import Header from "@/components/Header";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import ProofModal from "@/components/ProofModal";
 import ShareButton from "@/components/ShareButton";
+import StarknetAddress from "@/components/StarknetAddress";
 import StatusBadge from "@/components/StatusBadge";
 import VotePanel from "@/components/VotePanel";
 import { useToast } from "@/context/ToastContext";
@@ -27,10 +29,12 @@ import {
   ZERO_ADDRESS,
   addressesMatch,
   formatAmount,
+  getTokenDecimals,
   getTokenSymbol,
   shortAddress,
 } from "@/lib/config";
 import { cancelDare, claimDare, finalizeDare, getDare } from "@/lib/contract";
+import { extractTags, stripTags } from "@/lib/categories";
 import { decodeContractError } from "@/lib/utils";
 import type { Dare } from "@/lib/types";
 
@@ -46,6 +50,7 @@ export default function DarePage() {
   const [txHash, setTxHash] = useState("");
   const [error, setError] = useState("");
   const [showProofModal, setShowProofModal] = useState(false);
+  const confettiFired = useRef(false);
 
   const dareId = useMemo(() => {
     try {
@@ -82,9 +87,21 @@ export default function DarePage() {
     return () => window.clearInterval(interval);
   }, [loadDare]);
 
+  useEffect(() => {
+    if (dare?.status === "Approved" && !confettiFired.current) {
+      confettiFired.current = true;
+      void confetti({
+        particleCount: 120,
+        spread: 70,
+        origin: { y: 0.55 },
+        colors: ["#a5f3fc", "#c4b5fd", "#86efac", "#fde68a"],
+      });
+    }
+  }, [dare?.status]);
+
   const now = Math.floor(Date.now() / 1000);
   const symbol = dare ? getTokenSymbol(dare.rewardToken) : "TOKEN";
-  const rewardAmount = dare ? formatAmount(dare.rewardAmount) : "0";
+  const rewardAmount = dare ? formatAmount(dare.rewardAmount, getTokenDecimals(dare.rewardToken)) : "0";
   const isPoster =
     dare && wallet ? addressesMatch(wallet.address, dare.poster) : false;
   const isClaimer =
@@ -204,18 +221,23 @@ export default function DarePage() {
     return (
       <div className="min-h-screen">
         <Header />
-        <div className="mx-auto max-w-4xl px-4 py-16 text-center sm:px-6">
-          <p className="text-lg font-semibold text-white">Dare unavailable</p>
-          <p className="mt-2 text-sm text-rose-100/80">
-            {error || "The requested dare could not be found."}
-          </p>
-          <Link
-            className="mt-5 inline-flex items-center gap-2 text-sm text-cyan-200 transition hover:text-white"
-            href="/"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to feed
-          </Link>
+        <div className="mx-auto max-w-lg px-4 py-24 sm:px-6">
+          <div className="surface-panel px-8 py-10 text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-300/10">
+              <XCircle className="h-7 w-7 text-rose-300" />
+            </div>
+            <h2 className="mt-5 text-xl font-semibold text-white">Dare not found</h2>
+            <p className="mt-2 text-sm text-slate-400">
+              {error || "This dare doesn't exist or has been removed."}
+            </p>
+            <Link
+              className="mt-6 inline-flex items-center gap-2 rounded-full bg-cyan-300 px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200"
+              href="/"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to feed
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -252,8 +274,17 @@ export default function DarePage() {
                   {dare.title}
                 </h1>
                 <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300">
-                  {dare.description || "No extra description provided."}
+                  {stripTags(dare.description) || "No extra description provided."}
                 </p>
+                {extractTags(dare.description).length > 0 ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {extractTags(dare.description).map((tag) => (
+                      <span key={tag} className="rounded-full border border-fuchsia-300/15 bg-fuchsia-300/10 px-2.5 py-1 text-[11px] uppercase tracking-wider text-fuchsia-200/80">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
                 <div className="mt-4">
                   <ShareButton dare={dare} />
                 </div>
@@ -262,7 +293,7 @@ export default function DarePage() {
             </div>
 
             <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <MetricCard label="Poster" value={shortAddress(dare.poster)} />
+              <MetricCard label="Poster" value={<StarknetAddress address={dare.poster} />} />
               <MetricCard
                 label="Deadline"
                 value={
@@ -274,7 +305,7 @@ export default function DarePage() {
               {claimerVisible ? (
                 <MetricCard
                   label="Claimer"
-                  value={shortAddress(dare.claimer)}
+                  value={<StarknetAddress address={dare.claimer} />}
                 />
               ) : null}
               {dare.status === "Voting" && dare.votingEnd > 0 ? (

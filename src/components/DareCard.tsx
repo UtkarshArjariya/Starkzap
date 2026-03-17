@@ -4,8 +4,10 @@ import Link from "next/link";
 import { useState } from "react";
 import { ArrowUpRight, Check, Copy } from "lucide-react";
 import CountdownTimer from "@/components/CountdownTimer";
+import StarknetAddress from "@/components/StarknetAddress";
 import StatusBadge from "@/components/StatusBadge";
-import { formatAmount, getTokenSymbol, shortAddress } from "@/lib/config";
+import { formatAmount, getTokenDecimals, getTokenSymbol } from "@/lib/config";
+import { extractTags, stripTags } from "@/lib/categories";
 import type { Dare } from "@/lib/types";
 
 export function DareCardSkeleton() {
@@ -40,7 +42,9 @@ export function DareCardSkeleton() {
 
 export default function DareCard({ dare }: { dare: Dare }) {
   const tokenSymbol = getTokenSymbol(dare.rewardToken);
-  const amount = formatAmount(dare.rewardAmount);
+  const amount = formatAmount(dare.rewardAmount, getTokenDecimals(dare.rewardToken));
+  const tags = extractTags(dare.description);
+  const cleanDescription = stripTags(dare.description);
   const totalVotes = dare.approveVotes + dare.rejectVotes;
   const approvePercent = totalVotes > 0 ? Math.round((dare.approveVotes / totalVotes) * 100) : 0;
   const [copied, setCopied] = useState(false);
@@ -82,14 +86,26 @@ export default function DareCard({ dare }: { dare: Dare }) {
         <StatusBadge status={dare.status} />
       </div>
 
-      {dare.description ? (
-        <p className="mb-5 line-clamp-2 text-sm leading-6 text-slate-300/85">{dare.description}</p>
+      {cleanDescription ? (
+        <p className="mb-3 line-clamp-2 text-sm leading-6 text-slate-300/85">{cleanDescription}</p>
+      ) : null}
+
+      {tags.length > 0 ? (
+        <div className="mb-4 flex flex-wrap gap-1.5">
+          {tags.map((tag) => (
+            <span key={tag} className="rounded-full border border-fuchsia-300/10 bg-fuchsia-300/5 px-2 py-0.5 text-[10px] text-fuchsia-200/80">
+              {tag}
+            </span>
+          ))}
+        </div>
       ) : null}
 
       <div className="grid gap-3 rounded-[1.25rem] border border-white/10 bg-slate-950/50 p-4 sm:grid-cols-2">
         <div>
           <p className="text-[11px] uppercase tracking-[0.22em] text-slate-500">Posted by</p>
-          <p className="mt-2 font-mono text-sm text-slate-200">{shortAddress(dare.poster)}</p>
+          <div className="mt-2" onClick={(e) => e.preventDefault()}>
+            <StarknetAddress address={dare.poster} />
+          </div>
         </div>
         <div>
           <p className="text-[11px] uppercase tracking-[0.22em] text-slate-500">
