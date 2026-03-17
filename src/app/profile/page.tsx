@@ -2,18 +2,19 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { FileText, Trophy, UserRound, Zap } from "lucide-react";
+import { ExternalLink, FileText, Trophy, UserRound, Zap } from "lucide-react";
 import DareCard from "@/components/DareCard";
 import Header from "@/components/Header";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { useWallet } from "@/context/WalletContext";
-import { addressesMatch, shortAddress } from "@/lib/config";
+import StarknetAddress from "@/components/StarknetAddress";
+import { STARKSCAN_URL, ZERO_ADDRESS, addressesMatch, formatAmount, getTokenDecimals, getTokenSymbol } from "@/lib/config";
 import { getAllDares } from "@/lib/contract";
 import type { Dare } from "@/lib/types";
 
 export default function ProfilePage() {
   const { wallet, connect } = useWallet();
-  const [tab, setTab] = useState<"posted" | "claimed">("posted");
+  const [tab, setTab] = useState<"posted" | "claimed" | "activity">("posted");
   const [dares, setDares] = useState<Dare[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -76,6 +77,32 @@ export default function ProfilePage() {
     );
   }
 
+  // Activity: derive from dare data where user is poster or claimer
+  const activity = useMemo(() => {
+    if (!wallet) return [];
+    const events: Array<{ type: string; description: string; dare: Dare; timestamp: number }> = [];
+    for (const d of dares) {
+      const isPoster = addressesMatch(d.poster, wallet.address);
+      const isClaimer = d.claimer && d.claimer !== ZERO_ADDRESS && addressesMatch(d.claimer, wallet.address);
+      if (isPoster) {
+        events.push({ type: "created", description: `Posted "${d.title}" \u2014 ${formatAmount(d.rewardAmount, getTokenDecimals(d.rewardToken))} ${getTokenSymbol(d.rewardToken)} at stake`, dare: d, timestamp: d.deadline - 86400 });
+      }
+      if (isClaimer) {
+        events.push({ type: "claimed", description: `Claimed "${d.title}"`, dare: d, timestamp: d.deadline - 43200 });
+      }
+      if (isClaimer && d.proofSubmittedAt > 0) {
+        events.push({ type: "proof", description: `Submitted proof for "${d.title}"`, dare: d, timestamp: d.proofSubmittedAt });
+      }
+      if (isClaimer && d.status === "Approved") {
+        events.push({ type: "won", description: `Won ${formatAmount(d.rewardAmount, getTokenDecimals(d.rewardToken))} ${getTokenSymbol(d.rewardToken)} on "${d.title}"`, dare: d, timestamp: d.votingEnd });
+      }
+      if (isPoster && (d.status as string) === "Cancelled") {
+        events.push({ type: "cancelled", description: `Cancelled "${d.title}" \u2014 reward returned`, dare: d, timestamp: d.deadline });
+      }
+    }
+    return events.sort((a, b) => b.timestamp - a.timestamp).slice(0, 20);
+  }, [dares, wallet]);
+
   const visibleDares = tab === "posted" ? posted : claimed;
 
   return (
@@ -91,7 +118,7 @@ export default function ProfilePage() {
               </div>
               <div>
                 <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Connected account</p>
-                <p className="mt-2 font-mono text-sm text-white">{shortAddress(wallet.address)}</p>
+                <StarknetAddress address={wallet.address} className="mt-2 text-white" />
               </div>
             </div>
 
@@ -123,6 +150,16 @@ export default function ProfilePage() {
           >
             My claims ({claimed.length})
           </button>
+          <button
+            className={
+              tab === "activity"
+                ? "rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-950"
+                : "rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-400 transition hover:text-white"
+            }
+            onClick={() => setTab("activity")}
+          >
+            Activity ({activity.length})
+          </button>
         </section>
 
         <section className="mt-6">
@@ -135,6 +172,34 @@ export default function ProfilePage() {
               <p className="text-lg font-semibold">Could not load profile data</p>
               <p className="mt-2 text-sm text-rose-100/80">{error}</p>
             </div>
+          ) : tab === "activity" ? (
+            activity.length === 0 ? (
+              <div className="surface-panel px-6 py-12 text-center">
+                <p className="text-lg font-semibold text-white">No activity yet</p>
+                <p className="mt-2 text-sm text-slate-400">Post or claim a dare to start building your on-chain history.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {activity.map((event, i) => (
+                  <Link
+                    key={`${event.dare.id}-${event.type}-${i}`}
+                    href={`/dare/${event.dare.id.toString()}`}
+                    className="flex items-start gap-4 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 transition hover:border-cyan-300/20 hover:bg-white/[0.06]"
+                  >
+                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/5 text-sm">
+                      {event.type === "created" ? "\u{1F4DD}" : event.type === "claimed" ? "\u{26A1}" : event.type === "proof" ? "\u{1F4F8}" : event.type === "won" ? "\u{1F3C6}" : "\u{21A9}\u{FE0F}"}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-slate-200">{event.description}</p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {event.timestamp > 0 ? new Date(event.timestamp * 1000).toLocaleDateString() : ""}
+                      </p>
+                    </div>
+                    <ExternalLink className="mt-1 h-3.5 w-3.5 shrink-0 text-slate-500" />
+                  </Link>
+                ))}
+              </div>
+            )
           ) : visibleDares.length === 0 ? (
             <div className="surface-panel px-6 py-12 text-center">
               <p className="text-lg font-semibold text-white">

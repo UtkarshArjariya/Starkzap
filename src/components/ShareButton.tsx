@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Check, Copy, Share2 } from "lucide-react";
-import { formatAmount, getTokenSymbol } from "@/lib/config";
+import { formatAmount, getTokenDecimals, getTokenSymbol } from "@/lib/config";
 import type { Dare } from "@/lib/types";
 
 export default function ShareButton({ dare }: { dare: Dare }) {
@@ -14,7 +14,7 @@ export default function ShareButton({ dare }: { dare: Dare }) {
       : `/dare/${dare.id.toString()}`;
 
   const tokenSymbol = getTokenSymbol(dare.rewardToken);
-  const amount = formatAmount(dare.rewardAmount);
+  const amount = formatAmount(dare.rewardAmount, getTokenDecimals(dare.rewardToken));
   const tweetText = `🎯 Dare: "${dare.title}" — ${amount} ${tokenSymbol} up for grabs on Starknet. Can you do it?`;
   const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}&url=${encodeURIComponent(url)}&hashtags=DareBoard,Starknet`;
 
