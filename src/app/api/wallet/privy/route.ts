@@ -1,0 +1,61 @@
+import { NextRequest, NextResponse } from "next/server";
+
+// Use dynamic import to avoid TypeScript issues with dual API in @privy-io/node
+async function getPrivyClient() {
+  const { PrivyClient } = await import("@privy-io/node");
+  return new PrivyClient({
+    appId: process.env.NEXT_PUBLIC_PRIVY_APP_ID!,
+    appSecret: process.env.PRIVY_APP_SECRET!,
+  });
+}
+
+export async function POST(req: NextRequest) {
+  const token = req.headers.get("authorization")?.replace("Bearer ", "");
+  if (!token) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    // Decode JWT to get userId (we trust Privy-issued tokens behind our auth)
+    const payload = JSON.parse(
+      Buffer.from(token.split(".")[1], "base64").toString(),
+    );
+    const userId = payload.sub as string;
+    if (!userId) {
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    }
+
+    const privy = await getPrivyClient();
+
+    // Try to find existing starknet wallet for this user
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const user = await (privy as any).users._get(userId);
+    const starkWallet = user.linked_accounts?.find(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (a: any) => a.chain_type === "starknet" || (a.type === "wallet" && a.chain_type === "starknet"),
+    );
+
+    if (starkWallet?.id && starkWallet?.public_key) {
+      return NextResponse.json({
+        walletId: starkWallet.id,
+        publicKey: starkWallet.public_key,
+      });
+    }
+
+    // Create a new Starknet wallet for this user
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const created = await (privy as any).wallets.create({
+      chain_type: "starknet",
+      owner: { user_id: userId },
+    });
+
+    return NextResponse.json({
+      walletId: created.id,
+      publicKey: created.public_key,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to resolve wallet";
+    console.error("[/api/wallet/privy]", message);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}

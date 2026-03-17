@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ExternalLink, Gamepad2, Wallet, X } from "lucide-react";
+import { ExternalLink, Gamepad2, Mail, Wallet, X } from "lucide-react";
+import { usePrivy } from "@privy-io/react-auth";
 import LoadingSpinner from "@/components/LoadingSpinner";
-import { connectExtensionWallet, connectCartridgeWallet, getInstalledWallets } from "@/lib/starkzap";
+import { connectExtensionWallet, connectCartridgeWallet, connectPrivyWallet, getInstalledWallets } from "@/lib/starkzap";
 import type { InstalledWallet, WalletAccount } from "@/lib/types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -11,6 +12,7 @@ import type { InstalledWallet, WalletAccount } from "@/lib/types";
 type WalletModalProps = {
   onConnect: (wallet: WalletAccount) => void;
   onConnectCartridge: (wallet: WalletAccount) => void;
+  onConnectPrivy: (wallet: WalletAccount) => void;
   onClose: () => void;
 };
 
@@ -88,13 +90,16 @@ function WalletIcon({
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function WalletModal({ onConnect, onConnectCartridge, onClose }: WalletModalProps) {
+export default function WalletModal({ onConnect, onConnectCartridge, onConnectPrivy, onClose }: WalletModalProps) {
+  const { login, getAccessToken, authenticated } = usePrivy();
   const [installedWallets, setInstalledWallets] = useState<InstalledWallet[]>(
     [],
   );
   const [scanning, setScanning] = useState(true);
   const [connectingId, setConnectingId] = useState<string | null>(null);
   const [connectingCartridge, setConnectingCartridge] = useState(false);
+  const [connectingPrivy, setConnectingPrivy] = useState(false);
+  const [privyPendingConnect, setPrivyPendingConnect] = useState(false);
   const [error, setError] = useState("");
 
   // Scan for installed Starknet wallets on mount
@@ -143,7 +148,48 @@ export default function WalletModal({ onConnect, onConnectCartridge, onClose }: 
     }
   }
 
-  const isConnecting = connectingId !== null || connectingCartridge;
+  async function handlePrivyConnect() {
+    setError("");
+    setConnectingPrivy(true);
+
+    try {
+      if (!authenticated) {
+        setPrivyPendingConnect(true);
+        login();
+        return;
+      }
+
+      const connected = await connectPrivyWallet(getAccessToken);
+      onConnectPrivy(connected);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to connect with Privy.",
+      );
+    } finally {
+      setConnectingPrivy(false);
+    }
+  }
+
+  // After Privy login completes, create the StarkZap wallet
+  useEffect(() => {
+    if (authenticated && privyPendingConnect) {
+      setPrivyPendingConnect(false);
+      (async () => {
+        try {
+          const connected = await connectPrivyWallet(getAccessToken);
+          onConnectPrivy(connected);
+        } catch (err) {
+          setError(
+            err instanceof Error ? err.message : "Failed to connect with Privy.",
+          );
+        } finally {
+          setConnectingPrivy(false);
+        }
+      })();
+    }
+  }, [authenticated, privyPendingConnect, getAccessToken, onConnectPrivy]);
+
+  const isConnecting = connectingId !== null || connectingCartridge || connectingPrivy;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:px-4">
@@ -177,9 +223,43 @@ export default function WalletModal({ onConnect, onConnectCartridge, onClose }: 
 
         {/* Body */}
         <div className="space-y-3 p-5">
+          {/* ── Privy Social Login ────────────────────────────── */}
+          <p className="text-xs uppercase tracking-[0.22em] text-slate-500">
+            Quick Login
+          </p>
+
+          <button
+            className="group flex w-full items-center gap-3 rounded-2xl border border-violet-400/20 bg-gradient-to-r from-violet-500/10 to-fuchsia-500/10 px-4 py-3 text-left transition hover:border-violet-400/40 hover:from-violet-500/15 hover:to-fuchsia-500/15 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={isConnecting}
+            onClick={() => void handlePrivyConnect()}
+          >
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-400/30 to-fuchsia-500/20">
+              <Mail className="h-5 w-5 text-white/80" />
+            </div>
+
+            <div className="flex-1 overflow-hidden">
+              <p className="truncate font-medium text-white">
+                Email, Google, or Apple
+              </p>
+              <p className="text-xs text-slate-400">
+                No extension needed &middot; zero gas fees
+              </p>
+            </div>
+
+            {connectingPrivy ? (
+              <LoadingSpinner size="sm" />
+            ) : (
+              <span className="shrink-0 rounded-full border border-violet-300/25 bg-violet-300/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-widest text-violet-300 transition group-hover:bg-violet-300/20">
+                Sign in
+              </span>
+            )}
+          </button>
+
+          <div className="border-t border-white/10 pt-3">
           <p className="text-xs uppercase tracking-[0.22em] text-slate-500">
             Browser Extension
           </p>
+          </div>
 
           {/* Scanning state */}
           {scanning ? (
@@ -305,7 +385,7 @@ export default function WalletModal({ onConnect, onConnectCartridge, onClose }: 
           {/* Footer hint */}
           {!scanning && !error && (
             <p className="text-center text-[11px] text-slate-600">
-              Argent X, Braavos, or Cartridge Controller
+              Email/Google/Apple, Argent X, Braavos, or Cartridge
             </p>
           )}
         </div>
