@@ -94,6 +94,23 @@ The platform includes an automated finalization flow for eligible dares.
 
 This automation now works through GitHub Actions calling the deployed application endpoint on a schedule. This replaced the earlier Vercel cron approach because of Hobby plan scheduling limits.
 
+### GitHub Actions Secrets
+
+To enable the automated finalization cron job, set the following secrets in the GitHub repository settings:
+
+| Secret | Description | Example Value |
+|---|---|---|
+| `FINALIZE_URL` | Full URL of the finalize API endpoint | `https://dareboard.vercel.app/api/finalize` |
+| `CRON_SECRET` | Secret token used to authorize the cron request | any strong random string |
+
+The `FINALIZE_URL` for the production deployment is:
+
+```
+https://dareboard.vercel.app/api/finalize
+```
+
+This endpoint accepts `POST` requests and requires the `Authorization: Bearer <CRON_SECRET>` header.
+
 ## Deployment
 
 The project is deployed on Vercel.
