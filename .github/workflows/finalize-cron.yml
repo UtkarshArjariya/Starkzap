@@ -5,6 +5,10 @@ on:
     - cron: "*/5 * * * *"
   workflow_dispatch:
 
+# Required secrets:
+#   FINALIZE_URL  – Full URL of the finalize endpoint, e.g. https://dareboard.vercel.app/api/finalize
+#   CRON_SECRET   – Bearer token used to authorize the request
+
 jobs:
   trigger-finalize:
     runs-on: ubuntu-latest
