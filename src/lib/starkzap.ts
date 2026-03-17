@@ -6,8 +6,47 @@ import {
   RpcProvider,
 } from "starknet";
 import type { StarknetWindowObject } from "@starknet-io/types-js";
-import { RPC_URL } from "@/lib/config";
+import { RPC_URL, STARKNET_NETWORK } from "@/lib/config";
 import type { InstalledWallet, WalletAccount, WalletCall } from "@/lib/types";
+import {
+  StarkZap,
+  sepoliaTokens,
+  mainnetTokens,
+  fromAddress,
+  Amount,
+  OnboardStrategy,
+} from "starkzap";
+import type { WalletInterface } from "starkzap";
+
+// ─── StarkZap SDK ────────────────────────────────────────────────────────────
+
+const network = (STARKNET_NETWORK ?? "sepolia") as "sepolia" | "mainnet";
+
+/** AVNU paymaster URL per network (server-side direct, client-side via proxy) */
+const paymasterNodeUrl =
+  typeof window !== "undefined"
+    ? "/api/paymaster" // Client-side: use server proxy to hide API key
+    : network === "mainnet"
+      ? "https://starknet.paymaster.avnu.fi"
+      : "https://sepolia.paymaster.avnu.fi";
+
+/** Initialize StarkZap SDK with AVNU paymaster for gasless transactions */
+export const starkzapSdk = new StarkZap({
+  network,
+  paymaster: {
+    nodeUrl: paymasterNodeUrl,
+    // API key is only needed server-side (direct calls). Client-side calls go
+    // through /api/paymaster which injects the key on the server.
+    ...(typeof window === "undefined"
+      ? { apiKey: process.env.AVNU_API_KEY || undefined }
+      : {}),
+  },
+});
+
+/** Token presets from StarkZap for the current network */
+export const STARKZAP_TOKENS = network === "mainnet" ? mainnetTokens : sepoliaTokens;
+
+export { fromAddress, Amount, OnboardStrategy };
 
 // Only Argent X and Braavos are officially supported
 const SUPPORTED_WALLET_IDS = ["braavos", "argentx", "argent"];
@@ -144,6 +183,15 @@ export async function connectExtensionWallet(
       authorizedWallet as unknown as StarknetWindowObject,
     );
 
+    // Note: Extension wallets (Argent X / Braavos) CANNOT use the AVNU
+    // paymaster for gasless transactions. The AVNU paymaster flow requires
+    // co-signing the transaction before the user's wallet signs it, which
+    // means the paymaster must see and sign the raw transaction payload first.
+    // Extension wallets sign internally inside the browser extension and never
+    // expose the unsigned transaction for external co-signing — the key never
+    // leaves the extension. Gasless transactions are therefore only possible
+    // for Privy embedded wallets (where we hold a server-side signer) and
+    // Cartridge Controller (which has a built-in paymaster via its policies).
     return makeWallet(
       address,
       async (calls) => {
@@ -228,5 +276,125 @@ export async function disconnectWallet(): Promise<void> {
     await starknet.disconnect({ clearLastWallet: true });
   } catch {
     // Ignore disconnect errors – the UI state is cleared regardless.
+  }
+}
+
+// ─── Cartridge Controller (via StarkZap) ────────────────────────────────────
+
+let cartridgeWalletRef: WalletInterface | null = null;
+
+export async function connectCartridgeWallet(): Promise<WalletAccount> {
+  const CONTRACT = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS!;
+
+  // Cartridge Controller has built-in paymaster — all transactions matching
+  // policies are automatically sponsored. No need to specify feeMode.
+  const wallet = await starkzapSdk.connectCartridge({
+    policies: [
+      { target: CONTRACT, method: "create_dare" },
+      { target: CONTRACT, method: "claim_dare" },
+      { target: CONTRACT, method: "submit_proof" },
+      { target: CONTRACT, method: "cast_vote" },
+      { target: CONTRACT, method: "finalize_dare" },
+      { target: CONTRACT, method: "cancel_dare" },
+    ],
+  });
+
+  cartridgeWalletRef = wallet;
+
+  return makeWallet(
+    wallet.address as string,
+    async (calls) => {
+      const tx = await wallet.execute(
+        calls.map((c) => ({
+          contractAddress: c.contractAddress,
+          entrypoint: c.entrypoint,
+          calldata: c.calldata as string[],
+        })),
+      );
+      await tx.wait();
+      return { transaction_hash: tx.hash };
+    },
+    undefined, // no starknet window object
+    wallet.getChainId().toFelt252(),
+  );
+}
+
+export async function disconnectCartridgeWallet(): Promise<void> {
+  if (cartridgeWalletRef) {
+    await cartridgeWalletRef.disconnect();
+    cartridgeWalletRef = null;
+  }
+}
+
+// ─── Privy (via StarkZap) ────────────────────────────────────────────────────
+
+let privyWalletRef: WalletInterface | null = null;
+
+/**
+ * Connect a Privy-managed Starknet wallet via StarkZap's onboard flow.
+ * The caller must provide `getAccessToken` from Privy's React hook.
+ */
+export async function connectPrivyWallet(
+  getAccessToken: () => Promise<string | null>,
+): Promise<WalletAccount> {
+  // Step 1: Get Privy access token
+  const accessToken = await getAccessToken();
+  if (!accessToken) throw new Error("Not authenticated with Privy");
+
+  // Step 2: Resolve wallet from our server
+  const res = await fetch("/api/wallet/privy", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Failed to resolve wallet" }));
+    throw new Error(err.error || "Failed to resolve Privy wallet");
+  }
+  const { walletId, publicKey } = await res.json();
+
+  // Step 3: Use StarkZap onboard with privy strategy
+  const result = await starkzapSdk.onboard({
+    strategy: OnboardStrategy.Privy,
+    privy: {
+      resolve: async () => ({
+        walletId,
+        publicKey,
+        serverUrl: "/api/wallet/sign",
+        headers: () => ({
+          Authorization: `Bearer ${accessToken}`,
+        }),
+      }),
+    },
+    accountPreset: "argentXV050",
+    deploy: "if_needed",
+    feeMode: "sponsored",
+  });
+
+  const wallet = result.wallet;
+  privyWalletRef = wallet;
+
+  return makeWallet(
+    wallet.address as string,
+    async (calls) => {
+      const tx = await wallet.execute(
+        calls.map((c) => ({
+          contractAddress: c.contractAddress,
+          entrypoint: c.entrypoint,
+          calldata: c.calldata as string[],
+        })),
+        { feeMode: "sponsored" },
+      );
+      await tx.wait();
+      return { transaction_hash: tx.hash };
+    },
+    undefined,
+    wallet.getChainId().toFelt252(),
+  );
+}
+
+export async function disconnectPrivyWallet(): Promise<void> {
+  if (privyWalletRef) {
+    await privyWalletRef.disconnect();
+    privyWalletRef = null;
   }
 }
