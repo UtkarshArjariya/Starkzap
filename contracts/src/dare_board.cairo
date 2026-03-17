@@ -193,7 +193,7 @@ pub mod DareBoard {
 
             // Pull reward into escrow
             let token = IERC20Dispatcher { contract_address: reward_token };
-            token.transfer_from(caller, get_contract_address(), reward_amount);
+            assert(token.transfer_from(caller, get_contract_address(), reward_amount), 'Transfer failed');
 
             let count  = self.dare_count.read();
             let new_id = count + 1;
@@ -283,17 +283,17 @@ pub mod DareBoard {
                     // Insufficient community participation — refund poster
                     let poster = d.poster.read();
                     d.status.write(DareStatus::Rejected);
-                    token.transfer(poster, amount);
+                    assert(token.transfer(poster, amount), 'Transfer failed');
                     self.emit(DareFinalized { dare_id, status: DareStatus::Rejected, winner: poster });
                 } else if d.approve_votes.read() > d.reject_votes.read() {
                     let winner = d.claimer.read();
                     d.status.write(DareStatus::Approved);
-                    token.transfer(winner, amount);
+                    assert(token.transfer(winner, amount), 'Transfer failed');
                     self.emit(DareFinalized { dare_id, status: DareStatus::Approved, winner });
                 } else {
                     let poster = d.poster.read();
                     d.status.write(DareStatus::Rejected);
-                    token.transfer(poster, amount);
+                    assert(token.transfer(poster, amount), 'Transfer failed');
                     self.emit(DareFinalized { dare_id, status: DareStatus::Rejected, winner: poster });
                 }
             } else if (status == DareStatus::Claimed || status == DareStatus::Open)
@@ -301,7 +301,7 @@ pub mod DareBoard {
             {
                 let poster = d.poster.read();
                 d.status.write(DareStatus::Expired);
-                token.transfer(poster, amount);
+                assert(token.transfer(poster, amount), 'Transfer failed');
                 self.emit(DareFinalized { dare_id, status: DareStatus::Expired, winner: zero_address() });
             } else {
                 assert(false, 'Cannot finalize yet');
@@ -322,7 +322,7 @@ pub mod DareBoard {
             d.status.write(DareStatus::Expired);
 
             // Transfer escrowed funds back to poster
-            token.transfer(poster, amount);
+            assert(token.transfer(poster, amount), 'Transfer failed');
 
             self.emit(DareFinalized { dare_id, status: DareStatus::Expired, winner: zero_address() });
         }
