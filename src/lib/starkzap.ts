@@ -14,7 +14,6 @@ import {
   mainnetTokens,
   fromAddress,
   Amount,
-  OnboardStrategy,
 } from "starkzap";
 import type { WalletInterface } from "starkzap";
 
@@ -46,7 +45,7 @@ export const starkzapSdk = new StarkZap({
 /** Token presets from StarkZap for the current network */
 export const STARKZAP_TOKENS = network === "mainnet" ? mainnetTokens : sepoliaTokens;
 
-export { fromAddress, Amount, OnboardStrategy };
+export { fromAddress, Amount };
 
 // Only Argent X and Braavos are officially supported
 const SUPPORTED_WALLET_IDS = ["braavos", "argentx", "argent"];
@@ -326,75 +325,3 @@ export async function disconnectCartridgeWallet(): Promise<void> {
   }
 }
 
-// ─── Privy (via StarkZap) ────────────────────────────────────────────────────
-
-let privyWalletRef: WalletInterface | null = null;
-
-/**
- * Connect a Privy-managed Starknet wallet via StarkZap's onboard flow.
- * The caller must provide `getAccessToken` from Privy's React hook.
- */
-export async function connectPrivyWallet(
-  getAccessToken: () => Promise<string | null>,
-): Promise<WalletAccount> {
-  // Step 1: Get Privy access token
-  const accessToken = await getAccessToken();
-  if (!accessToken) throw new Error("Not authenticated with Privy");
-
-  // Step 2: Resolve wallet from our server
-  const res = await fetch("/api/wallet/privy", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: "Failed to resolve wallet" }));
-    throw new Error(err.error || "Failed to resolve Privy wallet");
-  }
-  const { walletId, publicKey } = await res.json();
-
-  // Step 3: Use StarkZap onboard with privy strategy
-  const result = await starkzapSdk.onboard({
-    strategy: OnboardStrategy.Privy,
-    privy: {
-      resolve: async () => ({
-        walletId,
-        publicKey,
-        serverUrl: "/api/wallet/sign",
-        headers: () => ({
-          Authorization: `Bearer ${accessToken}`,
-        }),
-      }),
-    },
-    accountPreset: "argentXV050",
-    deploy: "if_needed",
-    feeMode: "sponsored",
-  });
-
-  const wallet = result.wallet;
-  privyWalletRef = wallet;
-
-  return makeWallet(
-    wallet.address as string,
-    async (calls) => {
-      const tx = await wallet.execute(
-        calls.map((c) => ({
-          contractAddress: c.contractAddress,
-          entrypoint: c.entrypoint,
-          calldata: c.calldata as string[],
-        })),
-        { feeMode: "sponsored" },
-      );
-      await tx.wait();
-      return { transaction_hash: tx.hash };
-    },
-    undefined,
-    wallet.getChainId().toFelt252(),
-  );
-}
-
-export async function disconnectPrivyWallet(): Promise<void> {
-  if (privyWalletRef) {
-    await privyWalletRef.disconnect();
-    privyWalletRef = null;
-  }
-}

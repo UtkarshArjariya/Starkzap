@@ -9,13 +9,12 @@ import {
   useRef,
   useState,
 } from "react";
-import { usePrivy } from "@privy-io/react-auth";
 import WalletModal from "@/components/WalletModal";
 import { EXPECTED_CHAIN_ID, STARKNET_NETWORK } from "@/lib/config";
-import { disconnectWallet, disconnectCartridgeWallet, disconnectPrivyWallet, getConnectedWallet } from "@/lib/starkzap";
+import { disconnectWallet, disconnectCartridgeWallet, getConnectedWallet } from "@/lib/starkzap";
 import type { WalletAccount } from "@/lib/types";
 
-type WalletType = "extension" | "cartridge" | "privy";
+type WalletType = "extension" | "cartridge";
 
 type WalletContextValue = {
   wallet: WalletAccount | null;
@@ -28,7 +27,6 @@ type WalletContextValue = {
 const WalletContext = createContext<WalletContextValue | null>(null);
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
-  const { logout: privyLogout } = usePrivy();
   const [wallet, setWallet] = useState<WalletAccount | null>(null);
   const [showModal, setShowModal] = useState(false);
   // Track wallet type so we disconnect the right one
@@ -60,16 +58,12 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       case "cartridge":
         await disconnectCartridgeWallet();
         break;
-      case "privy":
-        await disconnectPrivyWallet();
-        await privyLogout();
-        break;
       default:
         await disconnectWallet();
     }
     walletTypeRef.current = "extension";
     setWallet(null);
-  }, [privyLogout]);
+  }, []);
 
   const handleConnect = useCallback((connectedWallet: WalletAccount, type: WalletType = "extension") => {
     walletTypeRef.current = type;
@@ -103,7 +97,6 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           onClose={handleClose}
           onConnect={(w) => handleConnect(w, "extension")}
           onConnectCartridge={(w) => handleConnect(w, "cartridge")}
-          onConnectPrivy={(w) => handleConnect(w, "privy")}
         />
       ) : null}
     </WalletContext.Provider>
