@@ -87,3 +87,5 @@ contracts/target/dev/.fingerprint/
 contracts/target/dev/incremental/
 contracts/target/release/.fingerprint/
 contracts/target/release/incremental/
+contracts/.snfoundry_cache/
+contracts/target/dev/*test*
