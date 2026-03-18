@@ -34,14 +34,12 @@ export async function POST(req: NextRequest) {
 
     const privy = await getPrivyClient();
 
-    // Sign the transaction hash using Privy's server-side wallet
+    // Runtime API: privy.wallets().rawSign(walletId, { hash })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const response = await (privy as any).wallets._rawSign(walletId, {
-      params: { hash },
-    });
+    const response = await (privy as any).wallets().rawSign(walletId, { hash });
 
     return NextResponse.json({
-      signature: response.data?.signature ?? response.signature,
+      signature: response.data?.signature ?? response.signature ?? response,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Signing failed";

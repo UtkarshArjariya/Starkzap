@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Use dynamic import to avoid TypeScript issues with dual API in @privy-io/node
+// Dynamic import to work around TypeScript dual-API issues in @privy-io/node
 async function getPrivyClient() {
   const { PrivyClient } = await import("@privy-io/node");
   return new PrivyClient({
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // Decode JWT to get userId (we trust Privy-issued tokens behind our auth)
+    // Decode JWT to get userId (Privy-issued, trusted behind our auth)
     const payload = JSON.parse(
       Buffer.from(token.split(".")[1], "base64").toString(),
     );
@@ -27,12 +27,16 @@ export async function POST(req: NextRequest) {
 
     const privy = await getPrivyClient();
 
-    // Try to find existing starknet wallet for this user
+    // Get user to find existing starknet wallet
+    // Runtime API: privy.users() returns service, .get() fetches user
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const user = await (privy as any).users._get(userId);
+    const p = privy as any;
+    const user = await p.users().get(userId);
     const starkWallet = user.linked_accounts?.find(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (a: any) => a.chain_type === "starknet" || (a.type === "wallet" && a.chain_type === "starknet"),
+      (a: any) =>
+        a.chain_type === "starknet" ||
+        (a.type === "wallet" && a.chain_type === "starknet"),
     );
 
     if (starkWallet?.id && starkWallet?.public_key) {
@@ -43,10 +47,9 @@ export async function POST(req: NextRequest) {
     }
 
     // Create a new Starknet wallet for this user
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const created = await (privy as any).wallets.create({
-      chain_type: "starknet",
-      owner: { user_id: userId },
+    const created = await p.wallets().create({
+      chainType: "starknet",
+      userId,
     });
 
     return NextResponse.json({
@@ -54,7 +57,8 @@ export async function POST(req: NextRequest) {
       publicKey: created.public_key,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to resolve wallet";
+    const message =
+      err instanceof Error ? err.message : "Failed to resolve wallet";
     console.error("[/api/wallet/privy]", message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
