@@ -20,9 +20,13 @@ export async function POST(req: NextRequest) {
     const payload = JSON.parse(
       Buffer.from(token.split(".")[1], "base64").toString(),
     );
-    const userId = payload.sub as string;
+    let userId = payload.sub as string;
     if (!userId) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    }
+    // Ensure did:privy: prefix
+    if (!userId.startsWith("did:privy:")) {
+      userId = `did:privy:${userId}`;
     }
 
     const privy = await getPrivyClient();
@@ -59,7 +63,12 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     const message =
       err instanceof Error ? err.message : "Failed to resolve wallet";
-    console.error("[/api/wallet/privy]", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    const stack = err instanceof Error ? err.stack : undefined;
+    console.error("[/api/wallet/privy]", message, stack);
+    // Return detailed error in development, generic in production
+    return NextResponse.json(
+      { error: message },
+      { status: 500 },
+    );
   }
 }
