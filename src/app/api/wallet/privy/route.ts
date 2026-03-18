@@ -1,26 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRemoteJWKSet } from "jose";
 
-const PRIVY_APP_ID = process.env.NEXT_PUBLIC_PRIVY_APP_ID!;
-const PRIVY_APP_SECRET = process.env.PRIVY_APP_SECRET!;
-const PRIVY_JWKS_URL = `https://auth.privy.io/api/v1/apps/${PRIVY_APP_ID}/jwks.json`;
 const PRIVY_API_BASE = "https://api.privy.io/v1";
 
-// Cache the JWKS keyset
+// Cache the JWKS keyset per appId
 let jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
-function getJWKS() {
-  if (!jwks) {
-    jwks = createRemoteJWKSet(new URL(PRIVY_JWKS_URL));
+let jwksAppId: string | null = null;
+function getJWKS(appId: string) {
+  if (!jwks || jwksAppId !== appId) {
+    jwksAppId = appId;
+    jwks = createRemoteJWKSet(
+      new URL(`https://auth.privy.io/api/v1/apps/${appId}/jwks.json`),
+    );
   }
   return jwks;
 }
 
-function privyHeaders() {
+function getEnv() {
+  const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
+  const appSecret = process.env.PRIVY_APP_SECRET;
+  if (!appId || !appSecret) {
+    throw new Error("Missing PRIVY env vars");
+  }
+  return { appId, appSecret };
+}
+
+function privyHeaders(appId: string, appSecret: string) {
   return {
-    "privy-app-id": PRIVY_APP_ID,
+    "privy-app-id": appId,
     Authorization:
       "Basic " +
-      Buffer.from(`${PRIVY_APP_ID}:${PRIVY_APP_SECRET}`).toString("base64"),
+      Buffer.from(`${appId}:${appSecret}`).toString("base64"),
     "Content-Type": "application/json",
   };
 }
@@ -32,12 +42,15 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const { appId, appSecret } = getEnv();
+    const headers = privyHeaders(appId, appSecret);
+
     // Verify the access token using Privy's JWKS endpoint
     const { verifyAccessToken } = await import("@privy-io/node");
     const verified = await verifyAccessToken({
       access_token: token,
-      app_id: PRIVY_APP_ID,
-      verification_key: getJWKS(),
+      app_id: appId,
+      verification_key: getJWKS(appId),
     });
 
     let userId = verified.user_id;
@@ -48,10 +61,11 @@ export async function POST(req: NextRequest) {
     // Get user via REST API to find existing starknet wallet
     const userResp = await fetch(
       `${PRIVY_API_BASE}/users/${encodeURIComponent(userId)}`,
-      { headers: privyHeaders() },
+      { headers },
     );
     if (!userResp.ok) {
-      throw new Error(`Privy user lookup failed: ${userResp.status}`);
+      const body = await userResp.text();
+      throw new Error(`Privy user lookup failed: ${userResp.status} ${body}`);
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const user: any = await userResp.json();
@@ -72,7 +86,7 @@ export async function POST(req: NextRequest) {
     // Create a new Starknet wallet via REST API
     const createResp = await fetch(`${PRIVY_API_BASE}/wallets`, {
       method: "POST",
-      headers: privyHeaders(),
+      headers,
       body: JSON.stringify({
         chain_type: "starknet",
         owner: { user_id: userId },

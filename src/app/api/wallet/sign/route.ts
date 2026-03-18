@@ -1,25 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRemoteJWKSet } from "jose";
 
-const PRIVY_APP_ID = process.env.NEXT_PUBLIC_PRIVY_APP_ID!;
-const PRIVY_APP_SECRET = process.env.PRIVY_APP_SECRET!;
-const PRIVY_JWKS_URL = `https://auth.privy.io/api/v1/apps/${PRIVY_APP_ID}/jwks.json`;
 const PRIVY_API_BASE = "https://api.privy.io/v1";
 
 let jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
-function getJWKS() {
-  if (!jwks) {
-    jwks = createRemoteJWKSet(new URL(PRIVY_JWKS_URL));
+let jwksAppId: string | null = null;
+function getJWKS(appId: string) {
+  if (!jwks || jwksAppId !== appId) {
+    jwksAppId = appId;
+    jwks = createRemoteJWKSet(
+      new URL(`https://auth.privy.io/api/v1/apps/${appId}/jwks.json`),
+    );
   }
   return jwks;
 }
 
-function privyHeaders() {
+function getEnv() {
+  const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
+  const appSecret = process.env.PRIVY_APP_SECRET;
+  if (!appId || !appSecret) {
+    throw new Error("Missing PRIVY env vars");
+  }
+  return { appId, appSecret };
+}
+
+function privyHeaders(appId: string, appSecret: string) {
   return {
-    "privy-app-id": PRIVY_APP_ID,
+    "privy-app-id": appId,
     Authorization:
       "Basic " +
-      Buffer.from(`${PRIVY_APP_ID}:${PRIVY_APP_SECRET}`).toString("base64"),
+      Buffer.from(`${appId}:${appSecret}`).toString("base64"),
     "Content-Type": "application/json",
   };
 }
@@ -31,12 +41,15 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const { appId, appSecret } = getEnv();
+    const headers = privyHeaders(appId, appSecret);
+
     // Verify token via JWKS
     const { verifyAccessToken } = await import("@privy-io/node");
     await verifyAccessToken({
       access_token: token,
-      app_id: PRIVY_APP_ID,
-      verification_key: getJWKS(),
+      app_id: appId,
+      verification_key: getJWKS(appId),
     });
 
     const { walletId, hash } = await req.json();
@@ -52,7 +65,7 @@ export async function POST(req: NextRequest) {
       `${PRIVY_API_BASE}/wallets/${encodeURIComponent(walletId)}/raw_sign`,
       {
         method: "POST",
-        headers: privyHeaders(),
+        headers,
         body: JSON.stringify({ hash }),
       },
     );
