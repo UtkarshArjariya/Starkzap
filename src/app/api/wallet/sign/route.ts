@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createRemoteJWKSet } from "jose";
 
 const PRIVY_APP_ID = process.env.NEXT_PUBLIC_PRIVY_APP_ID!;
+const PRIVY_APP_SECRET = process.env.PRIVY_APP_SECRET!;
 const PRIVY_JWKS_URL = `https://auth.privy.io/api/v1/apps/${PRIVY_APP_ID}/jwks.json`;
+const PRIVY_API_BASE = "https://api.privy.io/v1";
 
 let jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
 function getJWKS() {
@@ -12,12 +14,14 @@ function getJWKS() {
   return jwks;
 }
 
-async function getPrivyClient() {
-  const { PrivyClient } = await import("@privy-io/node");
-  return new PrivyClient({
-    appId: PRIVY_APP_ID,
-    appSecret: process.env.PRIVY_APP_SECRET!,
-  });
+function privyHeaders() {
+  return {
+    "privy-app-id": PRIVY_APP_ID,
+    Authorization:
+      "Basic " +
+      Buffer.from(`${PRIVY_APP_ID}:${PRIVY_APP_SECRET}`).toString("base64"),
+    "Content-Type": "application/json",
+  };
 }
 
 export async function POST(req: NextRequest) {
@@ -43,9 +47,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const privy = await getPrivyClient();
+    // Sign via REST API
+    const signResp = await fetch(
+      `${PRIVY_API_BASE}/wallets/${encodeURIComponent(walletId)}/raw_sign`,
+      {
+        method: "POST",
+        headers: privyHeaders(),
+        body: JSON.stringify({ hash }),
+      },
+    );
+    if (!signResp.ok) {
+      const errBody = await signResp.text();
+      throw new Error(`Privy signing failed: ${signResp.status} ${errBody}`);
+    }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const response = await (privy as any).wallets().rawSign(walletId, { hash });
+    const response: any = await signResp.json();
 
     return NextResponse.json({
       signature: response.data?.signature ?? response.signature ?? response,
