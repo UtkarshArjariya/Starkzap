@@ -358,7 +358,7 @@ export async function connectPrivyWallet(
       resolve: async () => ({
         walletId,
         publicKey,
-        serverUrl: "/api/wallet/sign",
+        serverUrl: `${window.location.origin}/api/wallet/sign`,
         headers: () => ({
           Authorization: `Bearer ${accessToken}`,
         }),
