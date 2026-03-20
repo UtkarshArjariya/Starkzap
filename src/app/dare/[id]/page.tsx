@@ -15,7 +15,9 @@ import {
   Zap,
 } from "lucide-react";
 import CountdownTimer from "@/components/CountdownTimer";
-import Header from "@/components/Header";
+import AdaptiveHeader from "@/components/AdaptiveHeader";
+import { ModernDareDetailPage } from "@/components/new-look/dare-detail-page";
+import { useUI } from "@/context/UIContext";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import ProofModal from "@/components/ProofModal";
 import ShareButton from "@/components/ShareButton";
@@ -39,6 +41,14 @@ import { decodeContractError } from "@/lib/utils";
 import type { Dare } from "@/lib/types";
 
 export default function DarePage() {
+  const { mode } = useUI();
+
+  if (mode === "modern") return <ModernDareDetailPage />;
+
+  return <ClassicDarePage />;
+}
+
+function ClassicDarePage() {
   const params = useParams<{ id: string }>();
   const searchParams = useSearchParams();
   const legacyContract = searchParams.get("contract") || undefined;
@@ -101,15 +111,22 @@ export default function DarePage() {
 
   const now = Math.floor(Date.now() / 1000);
   const symbol = dare ? getTokenSymbol(dare.rewardToken) : "TOKEN";
-  const rewardAmount = dare ? formatAmount(dare.rewardAmount, getTokenDecimals(dare.rewardToken)) : "0";
+  const rewardAmount = dare
+    ? formatAmount(dare.rewardAmount, getTokenDecimals(dare.rewardToken))
+    : "0";
   const isPoster =
     dare && wallet ? addressesMatch(wallet.address, dare.poster) : false;
   const isClaimer =
     dare && wallet ? addressesMatch(wallet.address, dare.claimer) : false;
   const isLegacy = !!dare?.legacy;
   const canClaim =
-    !!dare && !isLegacy && dare.status === "Open" && !isPoster && now < dare.deadline;
-  const canSubmitProof = !!dare && !isLegacy && dare.status === "Claimed" && isClaimer;
+    !!dare &&
+    !isLegacy &&
+    dare.status === "Open" &&
+    !isPoster &&
+    now < dare.deadline;
+  const canSubmitProof =
+    !!dare && !isLegacy && dare.status === "Claimed" && isClaimer;
   const canFinalize =
     !!dare &&
     !isLegacy &&
@@ -131,7 +148,10 @@ export default function DarePage() {
     hoursUntilDeadline > 0 &&
     hoursUntilDeadline < 6;
   const showVotingWarning =
-    !!dare && dare.status === "Voting" && hoursUntilVotingEnd > 0 && hoursUntilVotingEnd < 2;
+    !!dare &&
+    dare.status === "Voting" &&
+    hoursUntilVotingEnd > 0 &&
+    hoursUntilVotingEnd < 2;
 
   const handleClaim = async () => {
     if (!dare || dareId === null) {
@@ -195,7 +215,9 @@ export default function DarePage() {
       const activeWallet = wallet ?? (await connect());
       const hash = await cancelDare(activeWallet, dareId);
       setTxHash(hash);
-      toast.success("Dare cancelled — reward returned to your wallet.", { txHash: hash });
+      toast.success("Dare cancelled — reward returned to your wallet.", {
+        txHash: hash,
+      });
       await loadDare();
     } catch (cancelError) {
       const msg = decodeContractError(cancelError);
@@ -209,7 +231,7 @@ export default function DarePage() {
   if (loading) {
     return (
       <div className="min-h-screen">
-        <Header />
+        <AdaptiveHeader />
         <div className="mx-auto flex max-w-5xl items-center justify-center px-4 py-24">
           <LoadingSpinner size="lg" text="Loading dare..." />
         </div>
@@ -220,13 +242,15 @@ export default function DarePage() {
   if (!dare || error) {
     return (
       <div className="min-h-screen">
-        <Header />
+        <AdaptiveHeader />
         <div className="mx-auto max-w-lg px-4 py-24 sm:px-6">
           <div className="surface-panel px-8 py-10 text-center">
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-300/10">
               <XCircle className="h-7 w-7 text-rose-300" />
             </div>
-            <h2 className="mt-5 text-xl font-semibold text-white">Dare not found</h2>
+            <h2 className="mt-5 text-xl font-semibold text-white">
+              Dare not found
+            </h2>
             <p className="mt-2 text-sm text-slate-400">
               {error || "This dare doesn't exist or has been removed."}
             </p>
@@ -252,7 +276,7 @@ export default function DarePage() {
 
   return (
     <div className="min-h-screen">
-      <Header />
+      <AdaptiveHeader />
 
       <main className="mx-auto max-w-5xl px-4 pb-16 pt-8 sm:px-6">
         <Link
@@ -265,8 +289,13 @@ export default function DarePage() {
 
         {isLegacy ? (
           <div className="mt-6 rounded-2xl border border-amber-300/20 bg-amber-300/10 px-5 py-4 text-center">
-            <p className="text-sm font-medium text-amber-200">This dare is from a legacy contract and is no longer supported.</p>
-            <p className="mt-1 text-xs text-amber-200/60">It is displayed for historical purposes only. No actions can be performed.</p>
+            <p className="text-sm font-medium text-amber-200">
+              This dare is from a legacy contract and is no longer supported.
+            </p>
+            <p className="mt-1 text-xs text-amber-200/60">
+              It is displayed for historical purposes only. No actions can be
+              performed.
+            </p>
           </div>
         ) : null}
 
@@ -281,12 +310,16 @@ export default function DarePage() {
                   {dare.title}
                 </h1>
                 <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300">
-                  {stripTags(dare.description) || "No extra description provided."}
+                  {stripTags(dare.description) ||
+                    "No extra description provided."}
                 </p>
                 {extractTags(dare.description).length > 0 ? (
                   <div className="mt-3 flex flex-wrap gap-2">
                     {extractTags(dare.description).map((tag) => (
-                      <span key={tag} className="rounded-full border border-fuchsia-300/15 bg-fuchsia-300/10 px-2.5 py-1 text-[11px] uppercase tracking-wider text-fuchsia-200/80">
+                      <span
+                        key={tag}
+                        className="rounded-full border border-fuchsia-300/15 bg-fuchsia-300/10 px-2.5 py-1 text-[11px] uppercase tracking-wider text-fuchsia-200/80"
+                      >
                         {tag}
                       </span>
                     ))}
@@ -300,7 +333,10 @@ export default function DarePage() {
             </div>
 
             <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <MetricCard label="Poster" value={<StarknetAddress address={dare.poster} />} />
+              <MetricCard
+                label="Poster"
+                value={<StarknetAddress address={dare.poster} />}
+              />
               <MetricCard
                 label="Deadline"
                 value={
@@ -426,7 +462,9 @@ export default function DarePage() {
                   ) : (
                     <XCircle className="h-4 w-4" />
                   )}
-                  {txLoading === "Cancelling dare..." ? txLoading : "Cancel dare and reclaim reward"}
+                  {txLoading === "Cancelling dare..."
+                    ? txLoading
+                    : "Cancel dare and reclaim reward"}
                 </button>
               ) : null}
             </div>

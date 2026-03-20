@@ -6,6 +6,8 @@ import { Loader2, Plus, RefreshCcw, Sparkles, Zap } from "lucide-react";
 import DareCard, { DareCardSkeleton } from "@/components/DareCard";
 import DareOfTheDay from "@/components/DareOfTheDay";
 import Header from "@/components/Header";
+import { ModernFeedPage } from "@/components/new-look/feed-page";
+import { useUI } from "@/context/UIContext";
 import { getDaresPaginated } from "@/lib/contract";
 import { CATEGORIES, extractTags } from "@/lib/categories";
 
@@ -25,6 +27,14 @@ const FILTERS: Array<DareStatus | "All"> = [
 ];
 
 export default function FeedPage() {
+  const { mode } = useUI();
+
+  if (mode === "modern") return <ModernFeedPage />;
+
+  return <ClassicFeedPage />;
+}
+
+function ClassicFeedPage() {
   const [dares, setDares] = useState<Dare[]>([]);
   const [total, setTotal] = useState(0);
   const [hasMore, setHasMore] = useState(false);

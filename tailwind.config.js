@@ -46,6 +46,14 @@ module.exports = {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",
         },
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
+        },
+        warning: {
+          DEFAULT: "hsl(var(--warning))",
+          foreground: "hsl(var(--warning-foreground))",
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -55,6 +63,15 @@ module.exports = {
       },
       backgroundImage: {
         "hero-mesh": "radial-gradient(circle at top left, rgba(168, 85, 247, 0.18), transparent 34%), radial-gradient(circle at top right, rgba(56, 189, 248, 0.12), transparent 30%)",
+      },
+      keyframes: {
+        ticker: {
+          "0%": { transform: "translateX(0)" },
+          "100%": { transform: "translateX(-50%)" },
+        },
+      },
+      animation: {
+        ticker: "ticker 30s linear infinite",
       },
     },
   },

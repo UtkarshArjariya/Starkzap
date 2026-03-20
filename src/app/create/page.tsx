@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { ArrowLeft, CheckCircle2, ExternalLink, Lock, Tag } from "lucide-react";
-import Header from "@/components/Header";
+import AdaptiveHeader from "@/components/AdaptiveHeader";
+import { ModernCreatePage } from "@/components/new-look/create-page";
+import { useUI } from "@/context/UIContext";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { useWallet } from "@/context/WalletContext";
 import { useToast } from "@/context/ToastContext";
@@ -20,6 +22,13 @@ function getMinDateTime(): string {
 }
 
 export default function CreatePage() {
+  const { mode } = useUI();
+  if (mode === "modern") return <ModernCreatePage />;
+
+  return <ClassicCreatePage />;
+}
+
+function ClassicCreatePage() {
   const router = useRouter();
   const { wallet, connect } = useWallet();
   const toast = useToast();
@@ -41,13 +50,19 @@ export default function CreatePage() {
   const [txHash, setTxHash] = useState("");
   const [error, setError] = useState("");
 
-  const tokenSymbol = useMemo(() => getTokenSymbol(form.rewardToken), [form.rewardToken]);
+  const tokenSymbol = useMemo(
+    () => getTokenSymbol(form.rewardToken),
+    [form.rewardToken],
+  );
 
-  const updateField = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => {
+  const updateField = <K extends keyof typeof form>(
+    key: K,
+    value: (typeof form)[K],
+  ) => {
     setForm((current) => ({ ...current, [key]: value }));
   };
 
-  const applyTemplate = (tpl: typeof DARE_TEMPLATES[number]) => {
+  const applyTemplate = (tpl: (typeof DARE_TEMPLATES)[number]) => {
     const deadlineDate = new Date(Date.now() + tpl.suggestedDays * 86400_000);
     setForm({
       title: tpl.title,
@@ -61,7 +76,11 @@ export default function CreatePage() {
 
   const toggleTag = (tag: string) => {
     setSelectedTags((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : prev.length < 3 ? [...prev, tag] : prev,
+      prev.includes(tag)
+        ? prev.filter((t) => t !== tag)
+        : prev.length < 3
+          ? [...prev, tag]
+          : prev,
     );
   };
 
@@ -72,7 +91,9 @@ export default function CreatePage() {
     }
 
     if (form.title.trim().length > 31) {
-      setError("Title must fit into the Cairo felt252 limit of 31 ASCII characters");
+      setError(
+        "Title must fit into the Cairo felt252 limit of 31 ASCII characters",
+      );
       return;
     }
 
@@ -100,16 +121,23 @@ export default function CreatePage() {
 
       // Check token balance before submitting
       const decimals = getTokenDecimals(form.rewardToken);
-      const requiredAmount = BigInt(Math.floor(Number(form.rewardAmount) * 10 ** decimals));
+      const requiredAmount = BigInt(
+        Math.floor(Number(form.rewardAmount) * 10 ** decimals),
+      );
       try {
-        const balance = await getTokenBalance(form.rewardToken, activeWallet.address);
+        const balance = await getTokenBalance(
+          form.rewardToken,
+          activeWallet.address,
+        );
         if (balance < requiredAmount) {
           const symbol = getTokenSymbol(form.rewardToken);
           setError(
             `Insufficient ${symbol} balance. Your wallet needs ${form.rewardAmount} ${symbol} to lock as reward. ` +
-            `Go to your profile to copy your wallet address and send tokens to it.`,
+              `Go to your profile to copy your wallet address and send tokens to it.`,
           );
-          toast.error(`Insufficient ${symbol} balance — fund your wallet first.`);
+          toast.error(
+            `Insufficient ${symbol} balance — fund your wallet first.`,
+          );
           setLoading(false);
           return;
         }
@@ -117,7 +145,10 @@ export default function CreatePage() {
         // If balance check fails, let the transaction attempt proceed
       }
 
-      const finalDescription = appendTags(form.description.trim(), selectedTags);
+      const finalDescription = appendTags(
+        form.description.trim(),
+        selectedTags,
+      );
       const hash = await createDare(activeWallet, {
         title: form.title.trim(),
         description: finalDescription,
@@ -139,10 +170,13 @@ export default function CreatePage() {
 
   return (
     <div className="min-h-screen">
-      <Header />
+      <AdaptiveHeader />
 
       <main className="mx-auto max-w-3xl px-4 pb-16 pt-8 sm:px-6">
-        <Link className="inline-flex items-center gap-2 text-sm text-slate-400 transition hover:text-white" href="/">
+        <Link
+          className="inline-flex items-center gap-2 text-sm text-slate-400 transition hover:text-white"
+          href="/"
+        >
           <ArrowLeft className="h-4 w-4" />
           Back to feed
         </Link>
@@ -156,25 +190,40 @@ export default function CreatePage() {
               onClick={() => applyTemplate(tpl)}
             >
               <span className="text-2xl">{tpl.emoji}</span>
-              <span className="text-xs font-medium text-slate-200 line-clamp-2">{tpl.title}</span>
-              <span className="text-[10px] text-slate-500">{tpl.suggestedRewardStrk} STRK</span>
+              <span className="text-xs font-medium text-slate-200 line-clamp-2">
+                {tpl.title}
+              </span>
+              <span className="text-[10px] text-slate-500">
+                {tpl.suggestedRewardStrk} STRK
+              </span>
             </button>
           ))}
         </div>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
           <section className="surface-panel px-6 py-6">
-            <p className="text-xs uppercase tracking-[0.22em] text-cyan-200/80">New dare</p>
-            <h1 className="mt-2 text-3xl font-semibold text-white">Lock a reward and challenge the crowd.</h1>
+            <p className="text-xs uppercase tracking-[0.22em] text-cyan-200/80">
+              New dare
+            </p>
+            <h1 className="mt-2 text-3xl font-semibold text-white">
+              Lock a reward and challenge the crowd.
+            </h1>
             <p className="mt-3 max-w-xl text-sm leading-6 text-slate-400">
-              Titles become on-chain felt values, so keep them short. Descriptions, deadlines, and the escrowed reward stay visible to everyone reviewing the claim later.
+              Titles become on-chain felt values, so keep them short.
+              Descriptions, deadlines, and the escrowed reward stay visible to
+              everyone reviewing the claim later.
             </p>
 
             {txHash ? (
               <div className="mt-8 rounded-[1.5rem] border border-emerald-300/20 bg-emerald-300/10 p-5 text-center">
                 <CheckCircle2 className="mx-auto h-8 w-8 text-emerald-200" />
-                <p className="mt-3 text-lg font-semibold text-white">Dare posted successfully</p>
-                <p className="mt-2 text-sm text-emerald-50/80">The reward is now locked in escrow. Redirecting to the board...</p>
+                <p className="mt-3 text-lg font-semibold text-white">
+                  Dare posted successfully
+                </p>
+                <p className="mt-2 text-sm text-emerald-50/80">
+                  The reward is now locked in escrow. Redirecting to the
+                  board...
+                </p>
                 <a
                   className="mt-4 inline-flex items-center gap-1.5 text-sm text-cyan-200 transition hover:text-white"
                   href={`${STARKSCAN_URL}/tx/${txHash}`}
@@ -188,11 +237,15 @@ export default function CreatePage() {
             ) : (
               <div className="mt-8 space-y-5">
                 <div>
-                  <label className="mb-2 block text-xs uppercase tracking-[0.18em] text-slate-500">Title</label>
+                  <label className="mb-2 block text-xs uppercase tracking-[0.18em] text-slate-500">
+                    Title
+                  </label>
                   <input
                     className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/30"
                     maxLength={31}
-                    onChange={(event) => updateField("title", event.target.value)}
+                    onChange={(event) =>
+                      updateField("title", event.target.value)
+                    }
                     placeholder="Do 100 push-ups live"
                     type="text"
                     value={form.title}
@@ -204,60 +257,88 @@ export default function CreatePage() {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-xs uppercase tracking-[0.18em] text-slate-500">Description</label>
+                  <label className="mb-2 block text-xs uppercase tracking-[0.18em] text-slate-500">
+                    Description
+                  </label>
                   <textarea
                     className="min-h-36 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/30"
                     maxLength={500}
-                    onChange={(event) => updateField("description", event.target.value)}
+                    onChange={(event) =>
+                      updateField("description", event.target.value)
+                    }
                     placeholder="Describe exactly what the claimer must do, what counts as valid proof, and how the community should judge it."
                     value={form.description}
                   />
-                  <p className="mt-2 text-right text-xs text-slate-500">{form.description.length}/500</p>
+                  <p className="mt-2 text-right text-xs text-slate-500">
+                    {form.description.length}/500
+                  </p>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-[170px_1fr]">
                   <div>
-                    <label className="mb-2 block text-xs uppercase tracking-[0.18em] text-slate-500">Reward token</label>
+                    <label className="mb-2 block text-xs uppercase tracking-[0.18em] text-slate-500">
+                      Reward token
+                    </label>
                     <select
                       className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-300/30"
-                      onChange={(event) => updateField("rewardToken", event.target.value)}
+                      onChange={(event) =>
+                        updateField("rewardToken", event.target.value)
+                      }
                       value={form.rewardToken}
                     >
                       <option value={TOKENS.STRK}>STRK</option>
                       <option value={TOKENS.ETH}>ETH</option>
-                      {TOKENS.USDC ? <option value={TOKENS.USDC}>USDC</option> : null}
-                      {TOKENS.USDT ? <option value={TOKENS.USDT}>USDT</option> : null}
-                      {TOKENS.WBTC ? <option value={TOKENS.WBTC}>WBTC</option> : null}
+                      {TOKENS.USDC ? (
+                        <option value={TOKENS.USDC}>USDC</option>
+                      ) : null}
+                      {TOKENS.USDT ? (
+                        <option value={TOKENS.USDT}>USDT</option>
+                      ) : null}
+                      {TOKENS.WBTC ? (
+                        <option value={TOKENS.WBTC}>WBTC</option>
+                      ) : null}
                     </select>
                   </div>
 
                   <div>
-                    <label className="mb-2 block text-xs uppercase tracking-[0.18em] text-slate-500">Reward amount</label>
+                    <label className="mb-2 block text-xs uppercase tracking-[0.18em] text-slate-500">
+                      Reward amount
+                    </label>
                     <input
                       className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/30"
                       min="0.000001"
-                      onChange={(event) => updateField("rewardAmount", event.target.value)}
+                      onChange={(event) =>
+                        updateField("rewardAmount", event.target.value)
+                      }
                       placeholder="25"
                       step="0.01"
                       type="number"
                       value={form.rewardAmount}
                     />
                     <p className="mt-2 text-xs text-slate-500">
-                      A 1% platform fee is deducted on creation. Another 1% is deducted from the reward when the dare is approved.
+                      A 1% platform fee is deducted on creation. Another 1% is
+                      deducted from the reward when the dare is approved.
                     </p>
                   </div>
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-xs uppercase tracking-[0.18em] text-slate-500">Deadline</label>
+                  <label className="mb-2 block text-xs uppercase tracking-[0.18em] text-slate-500">
+                    Deadline
+                  </label>
                   <input
                     className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-300/30"
                     min={getMinDateTime()}
-                    onChange={(event) => updateField("deadline", event.target.value)}
+                    onChange={(event) =>
+                      updateField("deadline", event.target.value)
+                    }
                     type="datetime-local"
                     value={form.deadline}
                   />
-                  <p className="mt-2 text-xs text-slate-500">Minimum one hour from now to avoid accidental instant expiry.</p>
+                  <p className="mt-2 text-xs text-slate-500">
+                    Minimum one hour from now to avoid accidental instant
+                    expiry.
+                  </p>
                 </div>
 
                 <div>
@@ -284,50 +365,79 @@ export default function CreatePage() {
                 </div>
 
                 {error ? (
-                  <div className="rounded-2xl border border-rose-300/20 bg-rose-300/10 px-4 py-3 text-sm text-rose-100">{error}</div>
+                  <div className="rounded-2xl border border-rose-300/20 bg-rose-300/10 px-4 py-3 text-sm text-rose-100">
+                    {error}
+                  </div>
                 ) : null}
 
                 <button
                   className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-cyan-300 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200 disabled:opacity-60"
-                  disabled={loading || !form.title || !form.rewardAmount || !form.deadline}
+                  disabled={
+                    loading ||
+                    !form.title ||
+                    !form.rewardAmount ||
+                    !form.deadline
+                  }
                   onClick={() => void handleSubmit()}
                 >
-                  {loading ? <LoadingSpinner size="sm" /> : <Lock className="h-4 w-4" />}
-                  {loading ? "Sending transaction..." : `Post dare and lock ${form.rewardAmount || "0"} ${tokenSymbol}`}
+                  {loading ? (
+                    <LoadingSpinner size="sm" />
+                  ) : (
+                    <Lock className="h-4 w-4" />
+                  )}
+                  {loading
+                    ? "Sending transaction..."
+                    : `Post dare and lock ${form.rewardAmount || "0"} ${tokenSymbol}`}
                 </button>
               </div>
             )}
           </section>
 
           <aside className="surface-panel px-6 py-6">
-            <p className="text-xs uppercase tracking-[0.22em] text-slate-500">What happens next</p>
+            <p className="text-xs uppercase tracking-[0.22em] text-slate-500">
+              What happens next
+            </p>
             <ol className="mt-4 space-y-4 text-sm leading-6 text-slate-300">
               <li>
-                <span className="font-semibold text-white">1.</span> Your wallet approves the selected token and creates the dare in one multicall.
+                <span className="font-semibold text-white">1.</span> Your wallet
+                approves the selected token and creates the dare in one
+                multicall.
               </li>
               <li>
-                <span className="font-semibold text-white">2.</span> Someone claims it, submits proof, and moves the challenge into voting.
+                <span className="font-semibold text-white">2.</span> Someone
+                claims it, submits proof, and moves the challenge into voting.
               </li>
               <li>
-                <span className="font-semibold text-white">3.</span> Anyone except the poster and claimer can vote to approve or reject the proof.
+                <span className="font-semibold text-white">3.</span> Anyone
+                except the poster and claimer can vote to approve or reject the
+                proof.
               </li>
               <li>
-                <span className="font-semibold text-white">4.</span> Once the deadline or vote window ends, `finalize_dare` distributes the reward based on the contract rules.
+                <span className="font-semibold text-white">4.</span> Once the
+                deadline or vote window ends, `finalize_dare` distributes the
+                reward based on the contract rules.
               </li>
             </ol>
 
             <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4">
-              <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Preview</p>
-              <p className="mt-3 text-xl font-semibold text-white">{form.title || "Your dare title"}</p>
+              <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
+                Preview
+              </p>
+              <p className="mt-3 text-xl font-semibold text-white">
+                {form.title || "Your dare title"}
+              </p>
               <p className="mt-2 line-clamp-3 text-sm text-slate-400">
-                {form.description || "A concise description helps the community judge proof later."}
+                {form.description ||
+                  "A concise description helps the community judge proof later."}
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <span className="rounded-full border border-fuchsia-300/15 bg-fuchsia-300/10 px-3 py-1 text-xs text-fuchsia-100">
                   {form.rewardAmount || "0"} {tokenSymbol}
                 </span>
                 <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300">
-                  {form.deadline ? new Date(form.deadline).toLocaleString() : "Deadline not set"}
+                  {form.deadline
+                    ? new Date(form.deadline).toLocaleString()
+                    : "Deadline not set"}
                 </span>
               </div>
             </div>

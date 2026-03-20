@@ -26,6 +26,10 @@
     --input: 217 25% 18%;
     --ring: 189 93% 71%;
     --radius: 1rem;
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 222 47% 11%;
   }
 
   /* Light mode */
@@ -50,6 +54,10 @@
     --input: 214 20% 82%;
     --ring: 189 72% 37%;
     --radius: 1rem;
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 222 47% 11%;
   }
 
   * {
@@ -337,6 +345,31 @@ html.light .bg-white\/\[0\.06\] { background-color: rgba(226,232,240,0.5) !impor
 
 /* Gradient overlays for hero — soften */
 html.light .bg-gradient-to-br { opacity: 0.85; }
+
+/* ─── Modern UI utilities ──────────────────────────────────────────────── */
+
+.gradient-mesh {
+  background:
+    radial-gradient(ellipse 80% 50% at 20% 0%, hsla(187, 92%, 69%, 0.15), transparent),
+    radial-gradient(ellipse 60% 40% at 80% 0%, hsla(292, 84%, 61%, 0.1), transparent);
+}
+
+.text-gradient {
+  @apply bg-gradient-to-r from-cyan-300 via-fuchsia-400 to-cyan-300 bg-clip-text text-transparent;
+}
+
+.label-uppercase {
+  @apply text-[11px] uppercase tracking-[0.22em] font-medium;
+  color: hsl(var(--muted-foreground));
+}
+
+.card-hover {
+  @apply transition-all duration-200;
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 20px -5px hsl(var(--primary));
+}
 
 ::-webkit-scrollbar {
   width: 8px;

@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AlertTriangle, Menu, Moon, Sun, Trophy, X, Zap, LogOut, UserRound } from "lucide-react";
+import { AlertTriangle, Menu, Moon, Sun, Trophy, X, Zap, LogOut, UserRound, ToggleRight } from "lucide-react";
 import { useState } from "react";
 import { shortAddress } from "@/lib/config";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/context/ThemeContext";
+import { useUI } from "@/context/UIContext";
 import { useWallet } from "@/context/WalletContext";
 
 const NAV_ITEMS = [
@@ -19,6 +20,7 @@ export default function Header() {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const { theme, toggle: toggleTheme } = useTheme();
+  const { toggle: toggleUI } = useUI();
   const { wallet, wrongNetwork, expectedNetwork, connect, disconnect } = useWallet();
 
   return (
@@ -74,6 +76,14 @@ export default function Header() {
         </nav>
 
         <div className="hidden items-center gap-2 md:flex">
+          <button
+            className="inline-flex h-9 items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 text-xs font-medium text-slate-300 transition hover:border-cyan-300/30 hover:text-white"
+            onClick={toggleUI}
+            title="Switch to modern UI"
+          >
+            <ToggleRight className="h-4 w-4" />
+            Modern
+          </button>
           <button
             aria-label="Toggle theme"
             className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-300 transition hover:border-cyan-300/30 hover:text-white"
@@ -147,6 +157,14 @@ export default function Header() {
                 Connect wallet
               </button>
             )}
+
+            <button
+              className="mt-2 flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300 transition hover:text-white"
+              onClick={toggleUI}
+            >
+              <ToggleRight className="h-4 w-4" />
+              Switch to Modern UI
+            </button>
 
             <button
               aria-label="Toggle theme"

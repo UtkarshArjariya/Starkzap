@@ -4,6 +4,7 @@ import { PrivyProvider } from "@privy-io/react-auth";
 import Toasts from "@/components/Toast";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { ToastProvider } from "@/context/ToastContext";
+import { UIProvider } from "@/context/UIContext";
 import { WalletProvider } from "@/context/WalletContext";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
@@ -16,10 +17,12 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     >
       <ThemeProvider>
         <ToastProvider>
-          <WalletProvider>
-            {children}
-            <Toasts />
-          </WalletProvider>
+          <UIProvider>
+            <WalletProvider>
+              {children}
+              <Toasts />
+            </WalletProvider>
+          </UIProvider>
         </ToastProvider>
       </ThemeProvider>
     </PrivyProvider>

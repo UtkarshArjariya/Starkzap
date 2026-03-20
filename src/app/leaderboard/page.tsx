@@ -3,16 +3,32 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, Crown, Medal, Trophy } from "lucide-react";
-import Header from "@/components/Header";
+import AdaptiveHeader from "@/components/AdaptiveHeader";
+import { ModernLeaderboardPage } from "@/components/new-look/leaderboard-page";
+import { useUI } from "@/context/UIContext";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import StarknetAddress from "@/components/StarknetAddress";
 import { formatAmount } from "@/lib/config";
 
 type Tab = "earners" | "posters" | "voted";
 
-interface EarnerEntry { address: string; total: string; count: number }
-interface PosterEntry { address: string; total: string; count: number }
-interface VotedEntry { dareId: string; title: string; totalVotes: number; approveVotes: number; rejectVotes: number }
+interface EarnerEntry {
+  address: string;
+  total: string;
+  count: number;
+}
+interface PosterEntry {
+  address: string;
+  total: string;
+  count: number;
+}
+interface VotedEntry {
+  dareId: string;
+  title: string;
+  totalVotes: number;
+  approveVotes: number;
+  rejectVotes: number;
+}
 
 interface LeaderboardData {
   topEarners: EarnerEntry[];
@@ -28,6 +44,13 @@ function RankIcon({ rank }: { rank: number }) {
 }
 
 export default function LeaderboardPage() {
+  const { mode } = useUI();
+  if (mode === "modern") return <ModernLeaderboardPage />;
+
+  return <ClassicLeaderboardPage />;
+}
+
+function ClassicLeaderboardPage() {
   const [tab, setTab] = useState<Tab>("earners");
   const [data, setData] = useState<LeaderboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -37,7 +60,7 @@ export default function LeaderboardPage() {
     try {
       const res = await fetch("/api/leaderboard");
       if (!res.ok) throw new Error("Failed to load leaderboard");
-      const json = await res.json() as LeaderboardData;
+      const json = (await res.json()) as LeaderboardData;
       setData(json);
       setError("");
     } catch (err) {
@@ -52,24 +75,37 @@ export default function LeaderboardPage() {
   }, [loadData]);
 
   const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
-    { key: "earners", label: "Top Earners", icon: <Trophy className="h-4 w-4" /> },
-    { key: "posters", label: "Top Posters", icon: <Crown className="h-4 w-4" /> },
+    {
+      key: "earners",
+      label: "Top Earners",
+      icon: <Trophy className="h-4 w-4" />,
+    },
+    {
+      key: "posters",
+      label: "Top Posters",
+      icon: <Crown className="h-4 w-4" />,
+    },
     { key: "voted", label: "Most Voted", icon: <Medal className="h-4 w-4" /> },
   ];
 
   return (
     <div className="min-h-screen">
-      <Header />
+      <AdaptiveHeader />
 
       <main className="mx-auto max-w-4xl px-4 pb-16 pt-8 sm:px-6">
-        <Link className="inline-flex items-center gap-2 text-sm text-slate-400 transition hover:text-white" href="/">
+        <Link
+          className="inline-flex items-center gap-2 text-sm text-slate-400 transition hover:text-white"
+          href="/"
+        >
           <ArrowLeft className="h-4 w-4" />
           Back to feed
         </Link>
 
         <div className="mt-6 surface-panel px-6 py-6">
           <h1 className="text-2xl font-semibold text-white">Leaderboard</h1>
-          <p className="mt-2 text-sm text-slate-400">Top performers on Dare Board. Updates every 5 minutes.</p>
+          <p className="mt-2 text-sm text-slate-400">
+            Top performers on Dare Board. Updates every 5 minutes.
+          </p>
 
           <div className="mt-6 flex flex-wrap gap-2">
             {TABS.map((t) => (
@@ -116,14 +152,26 @@ function EarnersTable({ data }: { data: EarnerEntry[] }) {
   return (
     <div className="space-y-2">
       {data.map((entry, i) => (
-        <div key={entry.address} className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
-          <div className="flex h-8 w-8 items-center justify-center"><RankIcon rank={i + 1} /></div>
+        <div
+          key={entry.address}
+          className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3"
+        >
+          <div className="flex h-8 w-8 items-center justify-center">
+            <RankIcon rank={i + 1} />
+          </div>
           <div className="flex-1 min-w-0">
-            <StarknetAddress address={entry.address} className="text-slate-200 truncate" />
+            <StarknetAddress
+              address={entry.address}
+              className="text-slate-200 truncate"
+            />
           </div>
           <div className="text-right">
-            <p className="text-sm font-semibold text-white">{formatAmount(entry.total)} earned</p>
-            <p className="text-xs text-slate-500">{entry.count} dare{entry.count !== 1 ? "s" : ""} won</p>
+            <p className="text-sm font-semibold text-white">
+              {formatAmount(entry.total)} earned
+            </p>
+            <p className="text-xs text-slate-500">
+              {entry.count} dare{entry.count !== 1 ? "s" : ""} won
+            </p>
           </div>
         </div>
       ))}
@@ -136,14 +184,26 @@ function PostersTable({ data }: { data: PosterEntry[] }) {
   return (
     <div className="space-y-2">
       {data.map((entry, i) => (
-        <div key={entry.address} className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
-          <div className="flex h-8 w-8 items-center justify-center"><RankIcon rank={i + 1} /></div>
+        <div
+          key={entry.address}
+          className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3"
+        >
+          <div className="flex h-8 w-8 items-center justify-center">
+            <RankIcon rank={i + 1} />
+          </div>
           <div className="flex-1 min-w-0">
-            <StarknetAddress address={entry.address} className="text-slate-200 truncate" />
+            <StarknetAddress
+              address={entry.address}
+              className="text-slate-200 truncate"
+            />
           </div>
           <div className="text-right">
-            <p className="text-sm font-semibold text-white">{entry.count} dare{entry.count !== 1 ? "s" : ""}</p>
-            <p className="text-xs text-slate-500">{formatAmount(entry.total)} total staked</p>
+            <p className="text-sm font-semibold text-white">
+              {entry.count} dare{entry.count !== 1 ? "s" : ""}
+            </p>
+            <p className="text-xs text-slate-500">
+              {formatAmount(entry.total)} total staked
+            </p>
           </div>
         </div>
       ))}
@@ -161,13 +221,21 @@ function VotedTable({ data }: { data: VotedEntry[] }) {
           href={`/dare/${entry.dareId}`}
           className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 transition hover:border-cyan-300/20 hover:bg-white/[0.06]"
         >
-          <div className="flex h-8 w-8 items-center justify-center"><RankIcon rank={i + 1} /></div>
+          <div className="flex h-8 w-8 items-center justify-center">
+            <RankIcon rank={i + 1} />
+          </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-white truncate">{entry.title}</p>
+            <p className="text-sm font-medium text-white truncate">
+              {entry.title}
+            </p>
           </div>
           <div className="text-right">
-            <p className="text-sm font-semibold text-white">{entry.totalVotes} vote{entry.totalVotes !== 1 ? "s" : ""}</p>
-            <p className="text-xs text-slate-500">{entry.approveVotes} approve / {entry.rejectVotes} reject</p>
+            <p className="text-sm font-semibold text-white">
+              {entry.totalVotes} vote{entry.totalVotes !== 1 ? "s" : ""}
+            </p>
+            <p className="text-xs text-slate-500">
+              {entry.approveVotes} approve / {entry.rejectVotes} reject
+            </p>
           </div>
         </Link>
       ))}
