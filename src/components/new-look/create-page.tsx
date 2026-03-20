@@ -20,7 +20,7 @@ import { TOKENS, createDare, getTokenBalance } from "@/lib/contract";
 import { CATEGORIES, appendTags } from "@/lib/categories";
 import { DARE_TEMPLATES } from "@/lib/dareTemplates";
 import {
-  STARKSCAN_URL,
+  VOYAGER_URL,
   getTokenDecimals,
   getTokenSymbol,
 } from "@/lib/config";
@@ -243,7 +243,7 @@ export function ModernCreatePage() {
             Your dare is live on-chain. Redirecting to the feed…
           </p>
           <a
-            href={`${STARKSCAN_URL}/tx/${txHash}`}
+            href={`${VOYAGER_URL}/tx/${txHash}`}
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-2 rounded-full border border-border bg-secondary px-6 py-3 text-sm font-medium text-foreground transition-colors hover:bg-secondary/80"

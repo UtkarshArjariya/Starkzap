@@ -153,12 +153,12 @@ function ClassicFeedPage() {
               </Link>
               <a
                 className="inline-flex items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-medium text-white transition hover:bg-white/10"
-                href="https://sepolia.starkscan.co"
+                href="https://sepolia.voyager.online"
                 rel="noreferrer"
                 target="_blank"
               >
                 <Zap className="h-4 w-4 text-cyan-200" />
-                Explore Starkscan
+                Explore Voyager
               </a>
             </div>
           </div>

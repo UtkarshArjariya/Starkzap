@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { CheckCircle2, ExternalLink, Link as LinkIcon, X } from "lucide-react";
 import LoadingSpinner from "@/components/LoadingSpinner";
-import { STARKSCAN_URL } from "@/lib/config";
+import { VOYAGER_URL } from "@/lib/config";
 import { submitProof } from "@/lib/contract";
 import type { WalletAccount } from "@/lib/types";
 
@@ -70,11 +70,11 @@ export default function ProofModal({
             <p className="mt-3 text-lg font-semibold text-white">Proof submitted</p>
             <a
               className="mt-3 inline-flex items-center gap-1.5 text-sm text-cyan-200 transition hover:text-white"
-              href={`${STARKSCAN_URL}/tx/${txHash}`}
+              href={`${VOYAGER_URL}/tx/${txHash}`}
               rel="noreferrer"
               target="_blank"
             >
-              View transaction on Starkscan
+              View transaction on Voyager
               <ExternalLink className="h-4 w-4" />
             </a>
           </div>

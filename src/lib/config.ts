@@ -31,10 +31,13 @@ export const LEGACY_CONTRACT_ADDRESSES: string[] =
 
 // ─── Explorer ─────────────────────────────────────────────────────────────────
 
-export const STARKSCAN_URL =
+export const VOYAGER_URL =
   STARKNET_NETWORK === "mainnet"
-    ? "https://starkscan.co"
-    : `https://${STARKNET_NETWORK}.starkscan.co`;
+    ? "https://voyager.online"
+    : `https://${STARKNET_NETWORK}.voyager.online`;
+
+/** @deprecated Use VOYAGER_URL instead */
+export const STARKSCAN_URL = VOYAGER_URL;
 
 // ─── Tokens ───────────────────────────────────────────────────────────────────
 

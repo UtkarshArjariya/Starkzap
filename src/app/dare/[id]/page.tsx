@@ -27,7 +27,7 @@ import VotePanel from "@/components/VotePanel";
 import { useToast } from "@/context/ToastContext";
 import { useWallet } from "@/context/WalletContext";
 import {
-  STARKSCAN_URL,
+  VOYAGER_URL,
   ZERO_ADDRESS,
   addressesMatch,
   formatAmount,
@@ -473,7 +473,7 @@ function ClassicDarePage() {
               <div className="mt-4 text-center">
                 <a
                   className="inline-flex items-center gap-1.5 text-sm text-cyan-200 transition hover:text-white"
-                  href={`${STARKSCAN_URL}/tx/${txHash}`}
+                  href={`${VOYAGER_URL}/tx/${txHash}`}
                   rel="noreferrer"
                   target="_blank"
                 >

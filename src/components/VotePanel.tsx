@@ -5,7 +5,7 @@ import { CheckCircle2, ExternalLink, ThumbsDown, ThumbsUp } from "lucide-react";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import ProofPreview from "@/components/ProofPreview";
 import { useWallet } from "@/context/WalletContext";
-import { STARKSCAN_URL, addressesMatch } from "@/lib/config";
+import { VOYAGER_URL, addressesMatch } from "@/lib/config";
 import { castVote, hasVoterVoted } from "@/lib/contract";
 import { decodeContractError } from "@/lib/utils";
 import type { Dare } from "@/lib/types";
@@ -188,7 +188,7 @@ export default function VotePanel({
           {txHash ? (
             <a
               className="text-cyan-200 transition hover:text-white"
-              href={`${STARKSCAN_URL}/tx/${txHash}`}
+              href={`${VOYAGER_URL}/tx/${txHash}`}
               rel="noreferrer"
               target="_blank"
             >

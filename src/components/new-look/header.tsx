@@ -16,7 +16,7 @@ import {
   TOKENS,
   formatAmount,
   getTokenDecimals,
-  STARKSCAN_URL,
+  VOYAGER_URL,
 } from "@/lib/config";
 import { getAllDares, getTokenBalance } from "@/lib/contract";
 import { useTheme } from "@/context/ThemeContext";
@@ -466,7 +466,7 @@ export function ModernHeader() {
                         Settings
                       </button>
                       <a
-                        href={`${STARKSCAN_URL}/contract/${wallet.address}`}
+                        href={`${VOYAGER_URL}/contract/${wallet.address}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-3 px-4 py-2.5 text-sm text-foreground transition-colors hover:bg-muted/50"

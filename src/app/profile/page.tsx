@@ -19,7 +19,7 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 import { useWallet } from "@/context/WalletContext";
 import StarknetAddress from "@/components/StarknetAddress";
 import {
-  STARKSCAN_URL,
+  VOYAGER_URL,
   ZERO_ADDRESS,
   addressesMatch,
   formatAmount,

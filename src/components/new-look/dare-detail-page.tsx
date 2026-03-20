@@ -26,7 +26,7 @@ import CountdownTimer from "@/components/CountdownTimer";
 import { useWallet } from "@/context/WalletContext";
 import { useToast } from "@/context/ToastContext";
 import {
-  STARKSCAN_URL,
+  VOYAGER_URL,
   ZERO_ADDRESS,
   addressesMatch,
   formatAmount,
@@ -477,7 +477,7 @@ export function ModernDareDetailPage() {
             {/* Tx hash */}
             {txHash && (
               <a
-                href={`${STARKSCAN_URL}/tx/${txHash}`}
+                href={`${VOYAGER_URL}/tx/${txHash}`}
                 target="_blank"
                 rel="noreferrer"
                 className="flex items-center gap-2 rounded-2xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground transition-colors hover:text-foreground"
@@ -580,7 +580,7 @@ export function ModernDareDetailPage() {
                     <span className="text-sm">Posted by</span>
                   </div>
                   <a
-                    href={`${STARKSCAN_URL}/contract/${dare.poster}`}
+                    href={`${VOYAGER_URL}/contract/${dare.poster}`}
                     target="_blank"
                     rel="noreferrer"
                     className="font-mono text-sm text-foreground transition-colors hover:text-primary"
@@ -596,7 +596,7 @@ export function ModernDareDetailPage() {
                       <span className="text-sm">Claimed by</span>
                     </div>
                     <a
-                      href={`${STARKSCAN_URL}/contract/${dare.claimer}`}
+                      href={`${VOYAGER_URL}/contract/${dare.claimer}`}
                       target="_blank"
                       rel="noreferrer"
                       className="font-mono text-sm text-foreground transition-colors hover:text-primary"
@@ -648,7 +648,7 @@ export function ModernDareDetailPage() {
                       <span className="text-sm">Contract</span>
                     </div>
                     <a
-                      href={`${STARKSCAN_URL}/contract/${dare.contractAddress}`}
+                      href={`${VOYAGER_URL}/contract/${dare.contractAddress}`}
                       target="_blank"
                       rel="noreferrer"
                       className="font-mono text-sm text-primary transition-colors hover:underline"

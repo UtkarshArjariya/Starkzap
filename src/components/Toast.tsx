@@ -2,7 +2,7 @@
 
 import { X, ExternalLink, CheckCircle2, XCircle, Info, AlertTriangle } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
-import { STARKSCAN_URL } from "@/lib/config";
+import { VOYAGER_URL } from "@/lib/config";
 
 const BORDER: Record<string, string> = {
   success: "border-l-emerald-400",
@@ -52,11 +52,11 @@ export default function Toasts() {
             {toast.txHash ? (
               <a
                 className="mt-1 inline-flex items-center gap-1 text-xs text-cyan-300 transition hover:text-white"
-                href={`${STARKSCAN_URL}/tx/${toast.txHash}`}
+                href={`${VOYAGER_URL}/tx/${toast.txHash}`}
                 rel="noreferrer"
                 target="_blank"
               >
-                View on Starkscan
+                View on Voyager
                 <ExternalLink className="h-3 w-3" />
               </a>
             ) : null}

@@ -10,7 +10,7 @@ import { useUI } from "@/context/UIContext";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { useWallet } from "@/context/WalletContext";
 import { useToast } from "@/context/ToastContext";
-import { STARKSCAN_URL, getTokenDecimals, getTokenSymbol } from "@/lib/config";
+import { VOYAGER_URL, getTokenDecimals, getTokenSymbol } from "@/lib/config";
 import { TOKENS, createDare, getTokenBalance } from "@/lib/contract";
 import { CATEGORIES, appendTags } from "@/lib/categories";
 import { DARE_TEMPLATES } from "@/lib/dareTemplates";
@@ -226,7 +226,7 @@ function ClassicCreatePage() {
                 </p>
                 <a
                   className="mt-4 inline-flex items-center gap-1.5 text-sm text-cyan-200 transition hover:text-white"
-                  href={`${STARKSCAN_URL}/tx/${txHash}`}
+                  href={`${VOYAGER_URL}/tx/${txHash}`}
                   rel="noreferrer"
                   target="_blank"
                 >
