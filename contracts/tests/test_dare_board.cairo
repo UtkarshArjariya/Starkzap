@@ -100,8 +100,17 @@ fn CLAIMER() -> ContractAddress { contract_address_const::<'CLAIMER'>() }
 fn VOTER1() -> ContractAddress { contract_address_const::<'VOTER1'>() }
 fn VOTER2() -> ContractAddress { contract_address_const::<'VOTER2'>() }
 fn VOTER3() -> ContractAddress { contract_address_const::<'VOTER3'>() }
+fn TREASURY() -> ContractAddress { contract_address_const::<'TREASURY'>() }
 
 const REWARD_AMOUNT: u256 = 1000000000000000000_u256; // 1e18
+// 1% creation fee = REWARD_AMOUNT / 100
+const CREATION_FEE: u256 = 10000000000000000_u256; // 1e16
+// Escrowed after creation fee = REWARD_AMOUNT - CREATION_FEE
+const ESCROWED_AMOUNT: u256 = 990000000000000000_u256; // 99e16
+// 1% claim fee on escrowed = ESCROWED_AMOUNT / 100
+const CLAIM_FEE: u256 = 9900000000000000_u256; // 99e14
+// Claimer payout = ESCROWED_AMOUNT - CLAIM_FEE
+const CLAIMER_PAYOUT: u256 = 980100000000000000_u256; // 9801e14
 const NOW: u64 = 1000000;
 const DEADLINE: u64 = 1000000 + 7200; // NOW + 2 hours (> 1 hour minimum)
 
@@ -116,6 +125,7 @@ fn deploy_dare_board() -> ContractAddress {
     let contract = declare("DareBoard").unwrap().contract_class();
     let mut calldata = array![];
     OWNER().serialize(ref calldata);
+    TREASURY().serialize(ref calldata);
     let (addr, _) = contract.deploy(@calldata).unwrap();
     addr
 }
@@ -189,12 +199,13 @@ fn test_create_dare_success() {
     let dare = board.get_dare(dare_id);
     assert(dare.poster == POSTER(), 'Wrong poster');
     assert(dare.title == 'Test Dare', 'Wrong title');
-    assert(dare.reward_amount == REWARD_AMOUNT, 'Wrong reward');
+    assert(dare.reward_amount == ESCROWED_AMOUNT, 'Wrong reward');
     assert(dare.status == DareStatus::Open, 'Should be Open');
 
-    // Token should have been escrowed
-    assert(token.balance_of(board.contract_address) == REWARD_AMOUNT, 'Board should hold reward');
+    // Token should have been escrowed (minus 1% creation fee)
+    assert(token.balance_of(board.contract_address) == ESCROWED_AMOUNT, 'Board should hold reward');
     assert(token.balance_of(POSTER()) == 0, 'Poster balance should be 0');
+    assert(token.balance_of(TREASURY()) == CREATION_FEE, 'Treasury should have fee');
 }
 
 #[test]
@@ -254,8 +265,10 @@ fn test_finalize_approve_pays_claimer() {
 
     let dare = board.get_dare(dare_id);
     assert(dare.status == DareStatus::Approved, 'Should be Approved');
-    assert(token.balance_of(CLAIMER()) == REWARD_AMOUNT, 'Claimer should get reward');
+    assert(token.balance_of(CLAIMER()) == CLAIMER_PAYOUT, 'Claimer should get payout');
     assert(token.balance_of(board.contract_address) == 0, 'Board should be empty');
+    // Treasury gets creation fee + claim fee
+    assert(token.balance_of(TREASURY()) == CREATION_FEE + CLAIM_FEE, 'Treasury wrong');
 }
 
 #[test]
@@ -276,7 +289,8 @@ fn test_finalize_reject_returns_to_poster() {
 
     let dare = board.get_dare(dare_id);
     assert(dare.status == DareStatus::Rejected, 'Should be Rejected');
-    assert(token.balance_of(POSTER()) == REWARD_AMOUNT, 'Poster should get refund');
+    // Poster gets back escrowed amount (creation fee already taken)
+    assert(token.balance_of(POSTER()) == ESCROWED_AMOUNT, 'Poster should get refund');
 }
 
 #[test]
@@ -291,7 +305,8 @@ fn test_finalize_expired_returns_to_poster() {
 
     let dare = board.get_dare(dare_id);
     assert(dare.status == DareStatus::Expired, 'Should be Expired');
-    assert(token.balance_of(POSTER()) == REWARD_AMOUNT, 'Poster should get refund');
+    // Poster gets back escrowed amount (creation fee already taken)
+    assert(token.balance_of(POSTER()) == ESCROWED_AMOUNT, 'Poster should get refund');
 }
 
 #[test]
@@ -305,7 +320,8 @@ fn test_cancel_dare_by_poster() {
 
     let dare = board.get_dare(dare_id);
     assert(dare.status == DareStatus::Expired, 'Should be Expired after cancel');
-    assert(token.balance_of(POSTER()) == REWARD_AMOUNT, 'Poster should get refund');
+    // Poster gets back escrowed amount (creation fee already taken)
+    assert(token.balance_of(POSTER()) == ESCROWED_AMOUNT, 'Poster should get refund');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -406,5 +422,6 @@ fn test_finalize_below_min_votes_rejects() {
 
     let dare = board.get_dare(dare_id);
     assert(dare.status == DareStatus::Rejected, 'Should reject below min votes');
-    assert(token.balance_of(POSTER()) == REWARD_AMOUNT, 'Poster should get refund');
+    // Poster gets back escrowed amount (creation fee already taken)
+    assert(token.balance_of(POSTER()) == ESCROWED_AMOUNT, 'Poster should get refund');
 }

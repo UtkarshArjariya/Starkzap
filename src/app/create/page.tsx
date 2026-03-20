@@ -242,6 +242,9 @@ export default function CreatePage() {
                       type="number"
                       value={form.rewardAmount}
                     />
+                    <p className="mt-2 text-xs text-slate-500">
+                      A 1% platform fee is deducted on creation. Another 1% is deducted from the reward when the dare is approved.
+                    </p>
                   </div>
                 </div>
 

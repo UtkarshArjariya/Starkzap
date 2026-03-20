@@ -96,6 +96,7 @@ pub trait IDareBoard<TContractState> {
     fn get_dare(self: @TContractState, dare_id: u64) -> Dare;
     fn get_dare_count(self: @TContractState) -> u64;
     fn has_voter_voted(self: @TContractState, dare_id: u64, voter: ContractAddress) -> bool;
+    fn get_treasury(self: @TContractState) -> ContractAddress;
 }
 
 // ─── Contract ─────────────────────────────────────────────────────────────────
@@ -115,6 +116,7 @@ pub mod DareBoard {
     struct Storage {
         dare_count: u64,
         owner: ContractAddress,
+        treasury: ContractAddress,
         dares: Map<u64, DareNode>,
         has_voted: Map<(u64, ContractAddress), bool>,
     }
@@ -128,6 +130,7 @@ pub mod DareBoard {
         ProofSubmitted: ProofSubmitted,
         VoteCast: VoteCast,
         DareFinalized: DareFinalized,
+        FeeCollected: FeeCollected,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -158,16 +161,25 @@ pub mod DareBoard {
         status: DareStatus,
         winner: ContractAddress,
     }
+    #[derive(Drop, starknet::Event)]
+    struct FeeCollected {
+        #[key] dare_id: u64,
+        fee_type: felt252,
+        amount: u256,
+        token: ContractAddress,
+    }
 
     // ─── Constructor ──────────────────────────────────────────────────────────
     #[constructor]
-    fn constructor(ref self: ContractState, owner: ContractAddress) {
+    fn constructor(ref self: ContractState, owner: ContractAddress, treasury: ContractAddress) {
         self.owner.write(owner);
+        self.treasury.write(treasury);
         self.dare_count.write(0);
     }
 
     // ─── Constants ─────────────────────────────────────────────────────────────
     const MIN_VOTES_TO_FINALIZE: u64 = 3;
+    const FEE_PERCENT: u256 = 100; // 1% fee = divide by 100
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
     fn zero_address() -> ContractAddress {
@@ -191,9 +203,17 @@ pub mod DareBoard {
             assert(deadline > now + 3600, 'Deadline too soon');
             assert(reward_amount > 0_u256, 'Reward must be > 0');
 
-            // Pull reward into escrow
+            // Pull full reward from poster into contract
             let token = IERC20Dispatcher { contract_address: reward_token };
             assert(token.transfer_from(caller, get_contract_address(), reward_amount), 'Transfer failed');
+
+            // Deduct 1% creation fee and send to treasury
+            let creation_fee = reward_amount / FEE_PERCENT;
+            let escrowed = reward_amount - creation_fee;
+            let treasury = self.treasury.read();
+            if creation_fee > 0_u256 {
+                assert(token.transfer(treasury, creation_fee), 'Fee transfer failed');
+            }
 
             let count  = self.dare_count.read();
             let new_id = count + 1;
@@ -203,7 +223,7 @@ pub mod DareBoard {
             d.title.write(title);
             d.description.write(description);
             d.reward_token.write(reward_token);
-            d.reward_amount.write(reward_amount);
+            d.reward_amount.write(escrowed); // store net amount after fee
             d.deadline.write(deadline);
             d.claimer.write(zero_address());
             d.proof_url.write("");
@@ -215,7 +235,8 @@ pub mod DareBoard {
             d.status.write(DareStatus::Open);
 
             self.dare_count.write(new_id);
-            self.emit(DareCreated { dare_id: new_id, poster: caller, reward_amount });
+            self.emit(DareCreated { dare_id: new_id, poster: caller, reward_amount: escrowed });
+            self.emit(FeeCollected { dare_id: new_id, fee_type: 'creation', amount: creation_fee, token: reward_token });
             new_id
         }
 
@@ -272,7 +293,8 @@ pub mod DareBoard {
         fn finalize_dare(ref self: ContractState, dare_id: u64) {
             let d   = self.dares.entry(dare_id);
             let now = get_block_timestamp();
-            let token  = IERC20Dispatcher { contract_address: d.reward_token.read() };
+            let reward_token = d.reward_token.read();
+            let token  = IERC20Dispatcher { contract_address: reward_token };
             let amount = d.reward_amount.read();
             let status = d.status.read();
 
@@ -280,16 +302,24 @@ pub mod DareBoard {
                 let total_votes = d.approve_votes.read() + d.reject_votes.read();
 
                 if total_votes < MIN_VOTES_TO_FINALIZE {
-                    // Insufficient community participation — refund poster
+                    // Insufficient community participation — refund poster (no claim fee)
                     let poster = d.poster.read();
                     d.status.write(DareStatus::Rejected);
                     assert(token.transfer(poster, amount), 'Transfer failed');
                     self.emit(DareFinalized { dare_id, status: DareStatus::Rejected, winner: poster });
                 } else if d.approve_votes.read() > d.reject_votes.read() {
+                    // Approved — deduct 1% claim fee, send rest to claimer
+                    let claim_fee = amount / FEE_PERCENT;
+                    let payout = amount - claim_fee;
+                    let treasury = self.treasury.read();
                     let winner = d.claimer.read();
                     d.status.write(DareStatus::Approved);
-                    assert(token.transfer(winner, amount), 'Transfer failed');
+                    if claim_fee > 0_u256 {
+                        assert(token.transfer(treasury, claim_fee), 'Fee transfer failed');
+                    }
+                    assert(token.transfer(winner, payout), 'Transfer failed');
                     self.emit(DareFinalized { dare_id, status: DareStatus::Approved, winner });
+                    self.emit(FeeCollected { dare_id, fee_type: 'claim', amount: claim_fee, token: reward_token });
                 } else {
                     let poster = d.poster.read();
                     d.status.write(DareStatus::Rejected);
@@ -356,6 +386,10 @@ pub mod DareBoard {
             self: @ContractState, dare_id: u64, voter: ContractAddress,
         ) -> bool {
             self.has_voted.read((dare_id, voter))
+        }
+
+        fn get_treasury(self: @ContractState) -> ContractAddress {
+            self.treasury.read()
         }
     }
 }

@@ -126,10 +126,14 @@ async function deploy() {
   }
   console.log("Deployer address:", deployerAddress, "\n");
 
+  // Treasury address for platform fees (1% on create + 1% on claim)
+  const treasuryAddress = process.env.DEPLOYER_PUBLIC_KEY || deployerAddress;
+  console.log("Treasury address:", treasuryAddress, "\n");
+
   // ── Deploy ────────────────────────────────────────────────────────────────
   console.log("Deploying DareBoard contract...");
   const deployOutput = runSncast(
-    `-w --wait-timeout 300 deploy --class-hash ${classHash} --constructor-calldata ${deployerAddress} --unique`,
+    `-w --wait-timeout 300 deploy --class-hash ${classHash} --constructor-calldata ${deployerAddress} ${treasuryAddress} --unique`,
   );
 
   // Parse contract address and transaction hash from sncast output
