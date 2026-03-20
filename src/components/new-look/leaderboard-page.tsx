@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Coins, Crown, Loader2, Medal, Trophy, User, Users } from "lucide-react";
 import { ModernHeader } from "./header";
+import { getAvatarGradient } from "./utils";
+import { shortAddress } from "@/lib/config";
 
 interface EarnerEntry { address: string; total: string; count: number }
 interface PosterEntry { address: string; total: string; count: number }
@@ -26,18 +28,6 @@ type ListEntry = {
   href?: string;
   isAddress: boolean;
 };
-
-function truncateAddress(address: string) {
-  if (!address || address.length < 10) return address;
-  return `${address.slice(0, 6)}…${address.slice(-4)}`;
-}
-
-function getAvatarGradient(seed: string) {
-  const hash = seed.replace(/^0x/, "").padStart(8, "0");
-  const hue1 = parseInt(hash.slice(0, 2), 16) % 360;
-  const hue2 = (hue1 + 60) % 360;
-  return `linear-gradient(135deg, hsl(${hue1}, 65%, 52%), hsl(${hue2}, 65%, 52%))`;
-}
 
 const PODIUM_STYLE = {
   1: {
@@ -113,7 +103,7 @@ function buildList(data: LeaderboardData, tab: Tab): ListEntry[] {
     return data.topEarners.map((e, i) => ({
       rank: i + 1,
       key: e.address,
-      primary: truncateAddress(e.address),
+      primary: shortAddress(e.address),
       secondary: `${e.count} dare${e.count !== 1 ? "s" : ""} won`,
       value: `${Number(e.total).toLocaleString()} STRK`,
       isAddress: true,
@@ -123,7 +113,7 @@ function buildList(data: LeaderboardData, tab: Tab): ListEntry[] {
     return data.topPosters.map((e, i) => ({
       rank: i + 1,
       key: e.address,
-      primary: truncateAddress(e.address),
+      primary: shortAddress(e.address),
       secondary: `${e.count} dare${e.count !== 1 ? "s" : ""} posted`,
       value: `${Number(e.total).toLocaleString()} STRK staked`,
       isAddress: true,

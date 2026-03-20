@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { ModernHeader } from "./header";
 import { ModernDareCard, ModernDareCardSkeleton } from "./dare-card";
+import { getAvatarGradient } from "./utils";
 import { useWallet } from "@/context/WalletContext";
 import { getAllDares } from "@/lib/contract";
 import {
@@ -23,20 +24,9 @@ import {
   formatAmount,
   getTokenDecimals,
   getTokenSymbol,
+  shortAddress,
 } from "@/lib/config";
 import type { Dare } from "@/lib/types";
-
-function getAvatarGradient(address: string) {
-  const hash = address.replace(/^0x/, "").padStart(8, "0");
-  const hue1 = parseInt(hash.slice(0, 2), 16) % 360;
-  const hue2 = (hue1 + 60) % 360;
-  return `linear-gradient(135deg, hsl(${hue1}, 65%, 52%), hsl(${hue2}, 65%, 52%))`;
-}
-
-function truncateAddress(address: string) {
-  if (!address || address.length < 10) return address;
-  return `${address.slice(0, 6)}…${address.slice(-4)}`;
-}
 
 type ProfileTab = "posted" | "claimed";
 
@@ -195,7 +185,7 @@ export function ModernProfilePage() {
             <div className="flex-1">
               <div className="mb-2 flex items-center gap-3">
                 <h1 className="font-mono text-2xl font-bold text-foreground">
-                  {truncateAddress(wallet.address)}
+                  {shortAddress(wallet.address)}
                 </h1>
                 <button
                   onClick={copyAddress}
