@@ -1,142 +1,360 @@
-# Starkzap
+<p align="center">
+  <img src="https://img.shields.io/badge/Starknet-Sepolia-blue?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTYgMEMxMi44IDAgOS44IDEgNy4yIDIuOCA0LjYgNC43IDIuNyA3LjMgMS42IDEwLjQuNSAxMy41LjMgMTYuOCAxIDIwYy43IDMuMiAyLjMgNi4xIDQuNSA4LjRzNSAzLjkgOC4xIDQuNmMzLjEuNyA2LjQuNSA5LjQtLjYgMy0xLjEgNS42LTMgNy40LTUuNiAxLjgtMi42IDIuOC01LjYgMi44LTguOCAwLTQuMi0xLjctOC4zLTQuNy0xMS4zQzI1LjUgMy43IDIwLjkgMiAxNiAyIiBmaWxsPSIjZmZmIi8+PC9zdmc+" alt="Starknet" />
+  <img src="https://img.shields.io/badge/Next.js_16-black?style=for-the-badge&logo=next.js" alt="Next.js" />
+  <img src="https://img.shields.io/badge/Cairo-Contract-orange?style=for-the-badge" alt="Cairo" />
+  <img src="https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" alt="Tailwind" />
+  <img src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
+</p>
 
-Starkzap is a Starknet-based social challenge platform where users can create public dares, attach on-chain rewards, submit proof of completion, and let the community participate in deciding outcomes.
+<h1 align="center">Dare Board</h1>
 
-The project combines a modern web experience with blockchain-backed reward logic so that challenges, incentives, and finalization are transparent and verifiable.
+<p align="center">
+  <strong>On-chain social challenges with crypto bounties on Starknet</strong>
+</p>
 
-## What the Project Does
+<p align="center">
+  <a href="https://dareboard.vercel.app">Live App</a> &bull;
+  <a href="https://sepolia.voyager.online/contract/0x04efdb284186b5d96b177f53cd69653348620d45833e7f49440a052f3fafb0f5">Contract on Voyager</a> &bull;
+  <a href="https://sepolia.starkscan.co/contract/0x04efdb284186b5d96b177f53cd69653348620d45833e7f49440a052f3fafb0f5">Contract on Starkscan</a>
+</p>
 
-Starkzap is designed to make internet challenges and social bounty flows more trustworthy and structured.
+---
 
-With Starkzap, users can:
-
-- create public dares
-- lock rewards tied to those dares
-- browse and discover active challenges
-- submit proof for completed challenges
-- participate in community-driven review and voting
-- finalize outcomes with transparent on-chain execution
-
-The goal is to create a system where rewards are not managed by hidden off-chain logic, private spreadsheets, or centralized manual payout processes.
-
-## Core Product Idea
-
-The product sits at the intersection of:
-
-- social coordination
-- creator/community engagement
-- on-chain incentive design
-- transparent challenge resolution
-
-A dare on Starkzap is more than a post. It is intended to be a public commitment with visible reward mechanics, a defined outcome flow, and a verifiable resolution process.
-
-## Main Product Experience
-
-The platform is centered around a few main user experiences:
-
-### 1. Discovering dares
-Users can explore a feed of challenges and view different states of activity across the platform.
-
-### 2. Creating dares
-A user can create a new challenge and define the reward structure attached to it.
-
-### 3. Viewing dare details
-Each dare can be opened individually to understand its objective, reward context, status, and proof flow.
-
-### 4. Submitting proof
-Participants can submit evidence that a dare has been completed.
-
-### 5. Community review
-The system supports a review/voting phase so outcomes are not determined by a single hidden actor.
-
-### 6. Finalization
-Once timing and state conditions are met, the dare can be finalized through the on-chain flow.
-
-## Why Starkzap Exists
-
-Many challenge and bounty systems break down because they depend too heavily on trust in a central operator. Starkzap aims to reduce that trust requirement by combining:
-
-- public challenge visibility
-- transparent reward handling
-- shared community review
-- blockchain-based execution
-
-This makes the product especially relevant for crypto-native communities, creator ecosystems, social experiments, and public campaign mechanics.
-
-## Current Project Structure
-
-The repository is currently organized as a unified root workspace.
-
-High-level sections include:
-
-- `src/` — main application source
-- `contracts/` — Starknet smart contracts
-- `legacy/backend/` — archived backend from the older structure
-- `.github/workflows/` — automation workflows
-- `deploy.sh` — deployment helper script
-- `vercel.json` — deployment configuration
-
-## Technical Direction
-
-Starkzap is currently built around:
-
-- a root-level Next.js application
-- Starknet smart contract integration
-- Cairo contracts for on-chain logic
-- Vercel deployment
-- GitHub Actions for scheduled automation
-
-The project has recently been migrated from an older nested structure into a cleaner root-level setup for easier maintenance and deployment.
-
-## Automation and Operations
-
-The platform includes an automated finalization flow for eligible dares.
-
-This automation now works through GitHub Actions calling the deployed application endpoint on a schedule. This replaced the earlier Vercel cron approach because of Hobby plan scheduling limits.
-
-### GitHub Actions Secrets
-
-To enable the automated finalization cron job, set the following secrets in the GitHub repository settings:
-
-| Secret | Description | Example Value |
-|---|---|---|
-| `FINALIZE_URL` | Full URL of the finalize API endpoint | `https://dareboard.vercel.app/api/finalize` |
-| `CRON_SECRET` | Secret token used to authorize the cron request | any strong random string |
-
-The `FINALIZE_URL` for the production deployment is:
+## How It Works
 
 ```
-https://dareboard.vercel.app/api/finalize
+  POST A DARE          CLAIM IT           SUBMIT PROOF         COMMUNITY VOTES        PAYOUT
+ ┌──────────┐       ┌──────────┐       ┌──────────────┐      ┌──────────────┐     ┌──────────┐
+ │  Create a │       │ Someone  │       │  Claimer     │      │  Community   │     │  Winner  │
+ │  challenge│──────>│ accepts  │──────>│  uploads     │─────>│  votes       │────>│  gets    │
+ │  + lock   │       │ the dare │       │  proof       │      │  approve /   │     │  reward  │
+ │  reward   │       │          │       │  (link/media)│      │  reject      │     │  (- 1%)  │
+ └──────────┘       └──────────┘       └──────────────┘      └──────────────┘     └──────────┘
+    1% fee                                                     Min 3 votes           Treasury
+    to treasury                                                24h window            gets 1%
 ```
 
-This endpoint accepts `POST` requests and requires the `Authorization: Bearer <CRON_SECRET>` header.
+1. **Post** — Create a dare, set a reward in STRK/ETH/USDC, define a deadline. 1% platform fee is deducted.
+2. **Claim** — Anyone (except the poster) can claim the dare before the deadline.
+3. **Prove** — The claimer submits proof (YouTube link, image, description). A 24-hour voting window opens.
+4. **Vote** — Community members vote to approve or reject the proof. Minimum 3 votes required.
+5. **Finalize** — After voting ends: approved = claimer gets reward (minus 1% fee); rejected = poster gets refund.
 
-## Deployment
+---
 
-The project is deployed on Vercel.
+## Features
 
-Production domain:
+| Feature | Description |
+|---------|-------------|
+| **Multi-wallet support** | Argent X, Braavos, Cartridge Controller (social login), Privy (email/Google/Apple) |
+| **Gasless transactions** | AVNU paymaster for Privy wallets, Cartridge built-in paymaster |
+| **Platform fees** | 1% on dare creation + 1% on successful claim, sent to treasury |
+| **Admin panel** | On-chain delist/relist dares, owner-gated access |
+| **Legacy contracts** | Read-only display of dares from previous contract deployments |
+| **Auto-finalization** | GitHub Actions cron job calls `/api/finalize` every 5 minutes |
+| **Starknet.id** | Resolves `.stark` names for all addresses |
+| **Dark/Light mode** | Full theme support with CSS variable system |
+| **Leaderboard** | Top earners, top posters, most voted dares |
+| **Dare of the Day** | Daily featured dare with rotation algorithm |
+| **Categories** | Tag dares with fitness, food, social media, etc. |
 
-- `https://dareboard.vercel.app`
+---
 
-## Repository Notes
+## Architecture
 
-This repository includes both active project materials and some supporting reference documents. Some non-primary documentation and archived materials may be stored separately to keep the root of the project cleaner.
+```
+┌─────────────────────────────────────────────────────────┐
+│                    FRONTEND (Next.js 16)                 │
+│                                                         │
+│  ┌─────────┐  ┌──────────┐  ┌──────────┐  ┌─────────┐ │
+│  │  Feed   │  │  Create  │  │  Detail  │  │ Profile │ │
+│  │  Page   │  │  Page    │  │  Page    │  │  Page   │ │
+│  └────┬────┘  └────┬─────┘  └────┬─────┘  └────┬────┘ │
+│       │            │             │              │       │
+│  ┌────┴────────────┴─────────────┴──────────────┴────┐  │
+│  │              contract.ts (Read/Write)             │  │
+│  └────────────────────┬──────────────────────────────┘  │
+│                       │                                  │
+│  ┌────────────────────┴──────────────────────────────┐  │
+│  │           WalletContext (3 wallet paths)           │  │
+│  │   Extension │ Cartridge │ Privy (via StarkZap)    │  │
+│  └───────────────────────────────────────────────────┘  │
+└──────────────────────────┬──────────────────────────────┘
+                           │ RPC
+┌──────────────────────────┴──────────────────────────────┐
+│              STARKNET SEPOLIA                            │
+│                                                         │
+│  ┌───────────────────────────────────────────────────┐  │
+│  │           DareBoard Contract (Cairo)              │  │
+│  │                                                   │  │
+│  │  create_dare()    claim_dare()    submit_proof()  │  │
+│  │  cast_vote()      finalize_dare() cancel_dare()   │  │
+│  │  delist_dare()    relist_dare()   get_treasury()  │  │
+│  │                                                   │  │
+│  │  Storage: dares, votes, delisted, owner, treasury │  │
+│  │  Events: DareCreated, VoteCast, FeeCollected ...  │  │
+│  └───────────────────────────────────────────────────┘  │
+│                                                         │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
+│  │  ERC20 STRK  │  │  ERC20 ETH   │  │  ERC20 USDC  │  │
+│  └──────────────┘  └──────────────┘  └──────────────┘  │
+└─────────────────────────────────────────────────────────┘
+```
 
-## Vision
+---
 
-Starkzap aims to make on-chain social challenges feel:
+## Tech Stack
 
-- transparent
-- community-driven
-- incentive-aligned
-- easy to participate in
-- operationally reliable
+| Layer | Technology |
+|-------|-----------|
+| **Frontend** | Next.js 16 (App Router), TypeScript, Tailwind CSS v4 |
+| **Smart Contract** | Cairo (Starknet), snforge tests |
+| **Wallet SDK** | StarkZap SDK, @starknet-io/get-starknet-core v4, starknet.js v6 |
+| **Auth** | Privy (email/social), Cartridge Controller |
+| **Gas Sponsorship** | AVNU Paymaster (Privy), Cartridge built-in |
+| **Deployment** | Vercel (frontend), Starknet Sepolia (contract) |
+| **Automation** | GitHub Actions cron (finalize every 5 min) |
+| **Fonts** | Space Grotesk + IBM Plex Mono |
+| **Icons** | lucide-react |
 
-Over time, the platform can evolve into a broader primitive for public challenges, bounty campaigns, creator engagement loops, and community coordination on Starknet.
+---
 
-## Summary
+## Project Structure
 
-Starkzap is a product-focused Starknet application that turns social dares into transparent, reward-backed, community-reviewed on-chain experiences.
+```
+.
+├── contracts/
+│   ├── src/
+│   │   └── dare_board.cairo          # Main contract (dares, voting, fees, admin)
+│   ├── tests/
+│   │   └── test_dare_board.cairo     # 18 snforge tests
+│   ├── scripts/
+│   │   └── deploy.ts                 # sncast declare + deploy script
+│   ├── Scarb.toml
+│   └── snfoundry.toml
+│
+├── src/
+│   ├── app/
+│   │   ├── page.tsx                  # Feed (homepage)
+│   │   ├── create/page.tsx           # Create dare form
+│   │   ├── dare/[id]/page.tsx        # Dare detail + voting
+│   │   ├── profile/page.tsx          # User profile + activity
+│   │   ├── leaderboard/page.tsx      # Rankings
+│   │   ├── admin/page.tsx            # Admin panel (delist/relist)
+│   │   ├── api/
+│   │   │   ├── finalize/route.ts     # Auto-finalize endpoint
+│   │   │   ├── paymaster/route.ts    # AVNU paymaster proxy
+│   │   │   ├── dare-of-day/route.ts  # Daily featured dare
+│   │   │   └── wallet/
+│   │   │       ├── privy/route.ts    # Privy wallet resolver
+│   │   │       └── sign/route.ts     # Privy transaction signer
+│   │   ├── layout.tsx
+│   │   ├── providers.tsx             # Theme > Toast > Wallet providers
+│   │   └── globals.css               # Design tokens + light/dark themes
+│   │
+│   ├── components/
+│   │   ├── Header.tsx                # Sticky nav + wallet connection
+│   │   ├── DareCard.tsx              # Feed card + skeleton
+│   │   ├── DareOfTheDay.tsx          # Featured dare spotlight
+│   │   ├── VotePanel.tsx             # Proof display + vote buttons
+│   │   ├── WalletModal.tsx           # Multi-wallet connection modal
+│   │   ├── ProofModal.tsx            # Proof submission form
+│   │   ├── ProofPreview.tsx          # YouTube/image/video embed
+│   │   ├── StatusBadge.tsx           # Colored status pills
+│   │   ├── CountdownTimer.tsx        # Live countdown display
+│   │   ├── StarknetAddress.tsx       # .stark name resolution + copy
+│   │   ├── ShareButton.tsx           # Copy link + X share
+│   │   ├── Toast.tsx                 # Toast notification overlay
+│   │   └── LoadingSpinner.tsx
+│   │
+│   ├── context/
+│   │   ├── WalletContext.tsx          # Wallet state + 3 wallet paths
+│   │   ├── ToastContext.tsx           # Toast notification system
+│   │   └── ThemeContext.tsx           # Dark/light mode toggle
+│   │
+│   └── lib/
+│       ├── contract.ts               # All contract read/write calls
+│       ├── starkzap.ts               # StarkZap SDK init + wallet helpers
+│       ├── config.ts                 # Tokens, addresses, helpers
+│       ├── types.ts                  # TypeScript types
+│       ├── utils.ts                  # Error decoder + cn()
+│       ├── abi.json                  # Contract ABI
+│       ├── categories.ts             # Dare category tags
+│       ├── dareTemplates.ts          # Quick-start templates
+│       └── starknetId.ts             # .stark name resolution
+│
+├── .github/workflows/
+│   └── finalize-cron.yml             # Every 5 min finalize automation
+│
+├── deploy.sh                         # Build + declare + deploy + start
+├── V0_UI_REDESIGN.md                 # UI/UX redesign brief for v0
+└── CLAUDE.md                         # AI coding guidelines
+```
 
-It is not just a frontend for contract interaction; it is a structured challenge system designed to make social participation, proof, and payouts more trustworthy.
+---
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 18+
+- [Scarb](https://docs.swmansion.com/scarb/) (Cairo package manager)
+- [snforge](https://github.com/foundry-rs/starknet-foundry) (testing)
+- [sncast](https://github.com/foundry-rs/starknet-foundry) (deployment)
+
+### Install & Run
+
+```bash
+# Install frontend dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# TypeScript check (the only validation step)
+npm run typecheck
+```
+
+### Cairo Contract
+
+```bash
+cd contracts
+
+# Build
+scarb build
+
+# Run tests (18 tests)
+scarb test   # or: snforge test
+
+# Deploy (requires funded deployer account)
+cd ..
+DEPLOYER_PRIVATE_KEY=0x... ./deploy.sh
+```
+
+---
+
+## Smart Contract
+
+**Address (Sepolia):** `0x04efdb284186b5d96b177f53cd69653348620d45833e7f49440a052f3fafb0f5`
+
+**Class Hash:** `0x6fedc265a85f7700bc856d928e88aae4a3e4f29b74984fb5cea9845b507a015`
+
+### Dare Lifecycle
+
+```
+  Open ──> Claimed ──> Voting ──> Approved (claimer paid)
+   │          │           │
+   │          │           └──> Rejected (poster refunded)
+   │          │
+   └──> Expired (poster refunded, if deadline passed)
+   │
+   └──> Cancelled (poster refunded, poster-initiated)
+```
+
+### Contract Functions
+
+| Function | Access | Description |
+|----------|--------|-------------|
+| `create_dare` | Anyone | Post a dare with ERC20 reward. 1% creation fee to treasury. |
+| `claim_dare` | Anyone (not poster) | Claim an open dare before deadline. |
+| `submit_proof` | Claimer only | Submit proof URL + description. Starts 24h voting. |
+| `cast_vote` | Anyone (not poster/claimer) | Vote approve or reject. One vote per address. |
+| `finalize_dare` | Anyone | Finalize after voting/expiry. Distributes funds. |
+| `cancel_dare` | Poster only | Cancel an unclaimed dare. Refunds escrowed amount. |
+| `delist_dare` | Owner only | Hide a dare from the feed (admin moderation). |
+| `relist_dare` | Owner only | Unhide a delisted dare. |
+| `get_dare` | View | Read dare data by ID. |
+| `get_dare_count` | View | Total number of dares. |
+| `is_delisted` | View | Check if a dare is delisted. |
+| `get_treasury` | View | Treasury address receiving fees. |
+| `get_owner` | View | Admin/owner address. |
+
+### Fee Structure
+
+```
+Creator posts 100 STRK dare:
+  ├── 1 STRK (1%) ──> Treasury
+  └── 99 STRK ──> Escrowed in contract
+
+If approved:
+  ├── 0.99 STRK (1% of 99) ──> Treasury
+  └── 98.01 STRK ──> Claimer (winner)
+
+If rejected/expired/cancelled:
+  └── 99 STRK ──> Poster (full escrow refund)
+```
+
+---
+
+## Environment Variables
+
+### Frontend (`NEXT_PUBLIC_*` — baked at build time)
+
+| Variable | Description |
+|----------|-------------|
+| `NEXT_PUBLIC_CONTRACT_ADDRESS` | Current DareBoard contract address |
+| `NEXT_PUBLIC_STARKNET_NETWORK` | `sepolia` or `mainnet` |
+| `NEXT_PUBLIC_RPC_URL` | Primary Starknet RPC endpoint |
+| `NEXT_PUBLIC_LEGACY_CONTRACTS` | Comma-separated old contract addresses |
+| `NEXT_PUBLIC_PRIVY_APP_ID` | Privy application ID |
+
+### Server-only (never exposed to browser)
+
+| Variable | Description |
+|----------|-------------|
+| `DEPLOYER_PRIVATE_KEY` | Contract deployer Stark private key |
+| `CRON_SECRET` | Auth token for `/api/finalize` |
+| `AVNU_API_KEY` | AVNU paymaster API key |
+| `PRIVY_APP_SECRET` | Privy server secret |
+| `PRIVY_AUTHORIZATION_PRIVATE_KEY` | Privy wallet signing key |
+| `PRIVY_AUTHORIZATION_KEY_ID` | Privy authorization key ID |
+
+---
+
+## Wallet Integration
+
+| Wallet | Type | Gas | How |
+|--------|------|-----|-----|
+| **Argent X** | Browser extension | User pays | `@starknet-io/get-starknet-core` |
+| **Braavos** | Browser extension | User pays | `@starknet-io/get-starknet-core` |
+| **Cartridge** | Social login | Free (built-in paymaster) | `starkzapSdk.connectCartridge()` |
+| **Privy** | Email/Google/Apple | Free (AVNU paymaster) | `starkzapSdk.onboard({ strategy: Privy })` |
+
+---
+
+## Automation
+
+The finalize cron runs via GitHub Actions (`.github/workflows/finalize-cron.yml`) every 5 minutes:
+
+```yaml
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+```
+
+It calls `POST /api/finalize` with `Authorization: Bearer $CRON_SECRET`. The endpoint scans all dares and finalizes any that are past their voting/deadline window.
+
+**Required GitHub Secrets:** `FINALIZE_URL`, `CRON_SECRET`
+
+---
+
+## Contributing
+
+1. Fork the repo
+2. Create a feature branch (`git checkout -b feat/my-feature`)
+3. Make changes and run `npm run typecheck`
+4. For Cairo changes, run `scarb test` (all 18 tests must pass)
+5. Commit and push
+6. Open a PR
+
+---
+
+## License
+
+MIT
+
+---
+
+<p align="center">
+  Built on <a href="https://starknet.io">Starknet</a> &bull; Deployed on <a href="https://vercel.com">Vercel</a>
+</p>
