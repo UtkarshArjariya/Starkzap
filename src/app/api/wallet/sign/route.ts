@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
   try {
     const { appId, appSecret } = getEnv();
 
-    // Verify token via JWKS
+    // Verify token via JWKS (ensures caller is authenticated)
     const { verifyAccessToken, PrivyClient } = await import("@privy-io/node");
     await verifyAccessToken({
       access_token: token,
@@ -47,12 +47,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Sign via SDK — pass user JWT as authorization context
+    // Sign via SDK — app-owned wallets don't need authorization context
     const privy = new PrivyClient({ appId, appSecret });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const response: any = await privy.wallets().rawSign(walletId, {
       params: { hash },
-      authorization_context: { user_jwts: [token] },
     });
 
     const signature =

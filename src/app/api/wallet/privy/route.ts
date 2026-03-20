@@ -35,6 +35,13 @@ function privyHeaders(appId: string, appSecret: string) {
   };
 }
 
+/**
+ * Find an existing app-owned starknet wallet for this user by listing all
+ * starknet wallets and checking a client-provided hint, or create a new one.
+ *
+ * We create wallets WITHOUT an owner so the server can sign freely (app-owned).
+ * The client caches walletId in localStorage and sends it back as a hint.
+ */
 export async function POST(req: NextRequest) {
   const token = req.headers.get("authorization")?.replace("Bearer ", "");
   if (!token) {
@@ -47,54 +54,49 @@ export async function POST(req: NextRequest) {
 
     // Verify the access token using Privy's JWKS endpoint
     const { verifyAccessToken } = await import("@privy-io/node");
-    const verified = await verifyAccessToken({
+    await verifyAccessToken({
       access_token: token,
       app_id: appId,
       verification_key: getJWKS(appId),
     });
 
-    let userId = verified.user_id;
-    if (!userId.startsWith("did:privy:")) {
-      userId = `did:privy:${userId}`;
+    // Check if client sent a cached walletId hint
+    let body: { walletId?: string } = {};
+    try {
+      body = await req.json();
+    } catch {
+      // No body is fine
     }
 
-    // Get user via REST API to find existing starknet wallet
-    const userResp = await fetch(
-      `${PRIVY_API_BASE}/users/${encodeURIComponent(userId)}`,
-      { headers },
-    );
-    if (!userResp.ok) {
-      const body = await userResp.text();
-      throw new Error(`Privy user lookup failed: ${userResp.status} ${body}`);
-    }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const user: any = await userResp.json();
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const starkWallet = user.linked_accounts?.find(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (a: any) => a.type === "wallet" && a.chain_type === "starknet",
-    );
-
-    if (starkWallet?.id && starkWallet?.public_key) {
-      return NextResponse.json({
-        walletId: starkWallet.id,
-        publicKey: starkWallet.public_key,
-      });
+    if (body.walletId) {
+      // Verify the wallet exists and is a starknet wallet
+      const checkResp = await fetch(
+        `${PRIVY_API_BASE}/wallets/${encodeURIComponent(body.walletId)}`,
+        { headers },
+      );
+      if (checkResp.ok) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const wallet: any = await checkResp.json();
+        if (wallet.chain_type === "starknet" && wallet.public_key) {
+          return NextResponse.json({
+            walletId: wallet.id,
+            publicKey: wallet.public_key,
+          });
+        }
+      }
     }
 
-    // Create a new Starknet wallet via REST API
+    // Create a new app-owned Starknet wallet (no owner = server can sign)
     const createResp = await fetch(`${PRIVY_API_BASE}/wallets`, {
       method: "POST",
       headers,
-      body: JSON.stringify({
-        chain_type: "starknet",
-        owner: { user_id: userId },
-      }),
+      body: JSON.stringify({ chain_type: "starknet" }),
     });
     if (!createResp.ok) {
       const errBody = await createResp.text();
-      throw new Error(`Privy wallet creation failed: ${createResp.status} ${errBody}`);
+      throw new Error(
+        `Privy wallet creation failed: ${createResp.status} ${errBody}`,
+      );
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const created: any = await createResp.json();

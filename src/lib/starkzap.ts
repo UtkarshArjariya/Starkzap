@@ -345,16 +345,31 @@ export async function connectPrivyWallet(
   const accessToken = await getAccessToken();
   if (!accessToken) throw new Error("Not authenticated with Privy");
 
-  // Resolve wallet from our server
+  // Check localStorage for cached walletId
+  const cachedWalletId =
+    typeof window !== "undefined"
+      ? localStorage.getItem("privy_starknet_walletId")
+      : null;
+
+  // Resolve wallet from our server (send cached hint if available)
   const res = await fetch("/api/wallet/privy", {
     method: "POST",
-    headers: { Authorization: `Bearer ${accessToken}` },
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ walletId: cachedWalletId }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: "Failed to resolve wallet" }));
     throw new Error(err.error || "Failed to resolve Privy wallet");
   }
   const { walletId, publicKey } = await res.json();
+
+  // Cache for next session
+  if (typeof window !== "undefined") {
+    localStorage.setItem("privy_starknet_walletId", walletId);
+  }
 
   // Pre-deploy the account via paymaster if not yet deployed
   const ARGENT_V050_CLASS_HASH =
