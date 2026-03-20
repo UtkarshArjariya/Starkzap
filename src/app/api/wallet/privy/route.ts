@@ -19,10 +19,11 @@ function getJWKS(appId: string) {
 function getEnv() {
   const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
   const appSecret = process.env.PRIVY_APP_SECRET;
-  if (!appId || !appSecret) {
+  const authKeyId = process.env.PRIVY_AUTHORIZATION_KEY_ID;
+  if (!appId || !appSecret || !authKeyId) {
     throw new Error("Missing PRIVY env vars");
   }
-  return { appId, appSecret };
+  return { appId, appSecret, authKeyId };
 }
 
 function privyHeaders(appId: string, appSecret: string) {
@@ -35,13 +36,6 @@ function privyHeaders(appId: string, appSecret: string) {
   };
 }
 
-/**
- * Find an existing app-owned starknet wallet for this user by listing all
- * starknet wallets and checking a client-provided hint, or create a new one.
- *
- * We create wallets WITHOUT an owner so the server can sign freely (app-owned).
- * The client caches walletId in localStorage and sends it back as a hint.
- */
 export async function POST(req: NextRequest) {
   const token = req.headers.get("authorization")?.replace("Bearer ", "");
   if (!token) {
@@ -49,48 +43,77 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { appId, appSecret } = getEnv();
+    const { appId, appSecret, authKeyId } = getEnv();
     const headers = privyHeaders(appId, appSecret);
 
     // Verify the access token using Privy's JWKS endpoint
     const { verifyAccessToken } = await import("@privy-io/node");
-    await verifyAccessToken({
+    const verified = await verifyAccessToken({
       access_token: token,
       app_id: appId,
       verification_key: getJWKS(appId),
     });
 
-    // Check if client sent a cached walletId hint
-    let body: { walletId?: string } = {};
-    try {
-      body = await req.json();
-    } catch {
-      // No body is fine
+    let userId = verified.user_id;
+    if (!userId.startsWith("did:privy:")) {
+      userId = `did:privy:${userId}`;
     }
 
-    if (body.walletId) {
-      // Verify the wallet exists and is a starknet wallet
-      const checkResp = await fetch(
-        `${PRIVY_API_BASE}/wallets/${encodeURIComponent(body.walletId)}`,
-        { headers },
-      );
-      if (checkResp.ok) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const wallet: any = await checkResp.json();
-        if (wallet.chain_type === "starknet" && wallet.public_key) {
-          return NextResponse.json({
-            walletId: wallet.id,
-            publicKey: wallet.public_key,
-          });
+    // Get user via REST API to find existing starknet wallet
+    const userResp = await fetch(
+      `${PRIVY_API_BASE}/users/${encodeURIComponent(userId)}`,
+      { headers },
+    );
+    if (!userResp.ok) {
+      const body = await userResp.text();
+      throw new Error(`Privy user lookup failed: ${userResp.status} ${body}`);
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const user: any = await userResp.json();
+
+    // Find existing starknet wallet that has the authorization key as signer
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const starkWallets = (user.linked_accounts ?? []).filter(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (a: any) => a.type === "wallet" && a.chain_type === "starknet",
+    );
+
+    // Prefer a wallet that already has our authorization key
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const sw of starkWallets) {
+      if (sw.id && sw.public_key) {
+        // Check if it has our auth key (fetch full wallet details)
+        const wResp = await fetch(
+          `${PRIVY_API_BASE}/wallets/${encodeURIComponent(sw.id)}`,
+          { headers },
+        );
+        if (wResp.ok) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const wData: any = await wResp.json();
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const hasAuthKey = wData.additional_signers?.some(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (s: any) => s.signer_id === authKeyId,
+          );
+          if (hasAuthKey) {
+            return NextResponse.json({
+              walletId: sw.id,
+              publicKey: sw.public_key ?? wData.public_key,
+            });
+          }
         }
       }
     }
 
-    // Create a new app-owned Starknet wallet (no owner = server can sign)
+    // No wallet with auth key found — create a new one
     const createResp = await fetch(`${PRIVY_API_BASE}/wallets`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ chain_type: "starknet" }),
+      body: JSON.stringify({
+        chain_type: "starknet",
+        owner: { user_id: userId },
+        additional_signers: [{ signer_id: authKeyId }],
+      }),
     });
     if (!createResp.ok) {
       const errBody = await createResp.text();

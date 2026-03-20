@@ -16,10 +16,11 @@ function getJWKS(appId: string) {
 function getEnv() {
   const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
   const appSecret = process.env.PRIVY_APP_SECRET;
-  if (!appId || !appSecret) {
+  const authKey = process.env.PRIVY_AUTHORIZATION_PRIVATE_KEY;
+  if (!appId || !appSecret || !authKey) {
     throw new Error("Missing PRIVY env vars");
   }
-  return { appId, appSecret };
+  return { appId, appSecret, authKey };
 }
 
 export async function POST(req: NextRequest) {
@@ -29,7 +30,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { appId, appSecret } = getEnv();
+    const { appId, appSecret, authKey } = getEnv();
 
     // Verify token via JWKS (ensures caller is authenticated)
     const { verifyAccessToken, PrivyClient } = await import("@privy-io/node");
@@ -47,11 +48,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Sign via SDK — app-owned wallets don't need authorization context
+    // Sign via SDK with authorization private key for user-owned wallets
     const privy = new PrivyClient({ appId, appSecret });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const response: any = await privy.wallets().rawSign(walletId, {
       params: { hash },
+      authorization_context: {
+        authorization_private_keys: [authKey],
+      },
     });
 
     const signature =
