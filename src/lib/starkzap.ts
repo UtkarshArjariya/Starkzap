@@ -4,11 +4,6 @@ import { getStarknet } from "@starknet-io/get-starknet-core";
 import {
   WalletAccount as StarknetWalletAccount,
   RpcProvider,
-  hash,
-  CallData,
-  CairoCustomEnum,
-  CairoOption,
-  CairoOptionVariant,
 } from "starknet";
 import type { StarknetWindowObject } from "@starknet-io/types-js";
 import { RPC_URL, STARKNET_NETWORK } from "@/lib/config";
@@ -356,61 +351,7 @@ export async function connectPrivyWallet(
   }
   const { walletId, publicKey } = await res.json();
 
-  // Pre-deploy the account via paymaster if not yet deployed
-  const ARGENT_V050_CLASS_HASH =
-    "0x073414441639dcd11d1846f287650a00c60c416b9d3ba45d31c651672125b2c2";
-  const axSigner = new CairoCustomEnum({ Starknet: { pubkey: publicKey } });
-  const axGuardian = new CairoOption(CairoOptionVariant.None);
-  const calldataRaw = CallData.compile({ owner: axSigner, guardian: axGuardian });
-  // Paymaster requires hex-prefixed strings
-  const calldata = calldataRaw.map((v) =>
-    typeof v === "string" && !v.startsWith("0x") ? "0x" + BigInt(v).toString(16) : v,
-  );
-  const address = hash.calculateContractAddressFromHash(
-    publicKey,
-    ARGENT_V050_CLASS_HASH,
-    calldataRaw,
-    0,
-  );
-
-  try {
-    const provider = new RpcProvider({ nodeUrl: RPC_URL });
-    await provider.getClassHashAt(address, "latest");
-    // Account already deployed
-  } catch {
-    // Account not deployed — deploy via paymaster
-    const deployResp = await fetch("/api/paymaster", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        jsonrpc: "2.0",
-        id: 1,
-        method: "paymaster_executeTransaction",
-        params: {
-          transaction: {
-            type: "deploy",
-            deployment: {
-              address,
-              class_hash: ARGENT_V050_CLASS_HASH,
-              salt: publicKey,
-              calldata,
-              sigdata: null,
-              version: 1,
-            },
-          },
-          parameters: {
-            version: "0x1",
-            fee_mode: { mode: "sponsored" },
-          },
-        },
-      }),
-    });
-    const deployResult = await deployResp.json();
-    if (deployResult.error) {
-      console.warn("[privy] Pre-deploy failed, StarkZap will retry:", deployResult.error);
-    }
-  }
-
+  // StarkZap handles deployment with deploy: "if_needed"
   // Use StarkZap onboard with privy strategy
   const result = await starkzapSdk.onboard({
     strategy: OnboardStrategy.Privy,
