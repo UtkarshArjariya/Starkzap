@@ -100,7 +100,7 @@ export function ModernFeedPage() {
     <div className="min-h-screen bg-background pb-20 md:pb-0">
       <ModernHeader />
       <Hero totalDares={total} />
-      <LiveTicker />
+      <LiveTicker dares={dares} />
       {featuredDare && <FeaturedDare dare={featuredDare} />}
       <HowItWorks />
 
