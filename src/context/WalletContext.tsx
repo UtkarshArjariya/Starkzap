@@ -19,6 +19,7 @@ type WalletType = "extension" | "cartridge" | "privy";
 
 type WalletContextValue = {
   wallet: WalletAccount | null;
+  walletType: WalletType;
   wrongNetwork: boolean;
   expectedNetwork: string;
   connect: () => Promise<WalletAccount>;
@@ -32,6 +33,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [wallet, setWallet] = useState<WalletAccount | null>(null);
   const [showModal, setShowModal] = useState(false);
   // Track wallet type so we disconnect the right one
+  const [walletType, setWalletType] = useState<WalletType>("extension");
   const walletTypeRef = useRef<WalletType>("extension");
   const pendingConnectRef = useRef<{
     resolve: (wallet: WalletAccount) => void;
@@ -68,11 +70,13 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         await disconnectWallet();
     }
     walletTypeRef.current = "extension";
+    setWalletType("extension");
     setWallet(null);
   }, [privyLogout]);
 
   const handleConnect = useCallback((connectedWallet: WalletAccount, type: WalletType = "extension") => {
     walletTypeRef.current = type;
+    setWalletType(type);
     setWallet(connectedWallet);
     setShowModal(false);
     pendingConnectRef.current?.resolve(connectedWallet);
@@ -91,8 +95,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   }, [wallet?.chainId]);
 
   const value = useMemo<WalletContextValue>(
-    () => ({ wallet, wrongNetwork, expectedNetwork: STARKNET_NETWORK, connect, disconnect }),
-    [wallet, wrongNetwork, connect, disconnect],
+    () => ({ wallet, walletType, wrongNetwork, expectedNetwork: STARKNET_NETWORK, connect, disconnect }),
+    [wallet, walletType, wrongNetwork, connect, disconnect],
   );
 
   return (

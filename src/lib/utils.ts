@@ -58,6 +58,8 @@ export function decodeContractError(err: unknown): string {
     return "Network error. Check your connection and try again.";
   if (/key.*ring|no accounts/i.test(raw))
     return "Your wallet has no accounts. Open the extension and create one first.";
+  if (/execution.*rejected|execution_error.*rejected/i.test(raw))
+    return "Transaction rejected — your wallet may not have enough tokens to cover the reward amount. Fund your wallet first.";
 
   // Try to extract a felt252 revert reason from hex values in the error
   const hexMatch = message.match(/0x[0-9a-fA-F]{4,62}/g);

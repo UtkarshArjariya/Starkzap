@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ExternalLink, FileText, Trophy, UserRound, Zap } from "lucide-react";
+import { Check, Copy, ExternalLink, FileText, Trophy, UserRound, Zap } from "lucide-react";
 import DareCard from "@/components/DareCard";
 import Header from "@/components/Header";
 import LoadingSpinner from "@/components/LoadingSpinner";
@@ -13,11 +13,20 @@ import { getAllDares } from "@/lib/contract";
 import type { Dare } from "@/lib/types";
 
 export default function ProfilePage() {
-  const { wallet, connect } = useWallet();
+  const { wallet, walletType, connect } = useWallet();
   const [tab, setTab] = useState<"posted" | "claimed" | "activity">("posted");
   const [dares, setDares] = useState<Dare[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  const copyAddress = useCallback(() => {
+    if (!wallet) return;
+    void navigator.clipboard.writeText(wallet.address).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }, [wallet]);
 
   const loadDares = useCallback(async () => {
     try {
@@ -117,8 +126,25 @@ export default function ProfilePage() {
                 <UserRound className="h-7 w-7 text-fuchsia-100" />
               </div>
               <div>
-                <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Connected account</p>
-                <StarknetAddress address={wallet.address} className="mt-2 text-white" />
+                <p className="text-xs uppercase tracking-[0.22em] text-slate-500">
+                  Connected account {walletType === "privy" ? "(Privy)" : walletType === "cartridge" ? "(Cartridge)" : ""}
+                </p>
+                <div className="mt-2 flex items-center gap-2">
+                  <StarknetAddress address={wallet.address} className="text-white" />
+                  <button
+                    className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-xs text-slate-400 transition hover:text-white hover:bg-white/10"
+                    onClick={copyAddress}
+                    title="Copy address"
+                  >
+                    {copied ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
+                    {copied ? "Copied" : "Copy"}
+                  </button>
+                </div>
+                {walletType === "privy" ? (
+                  <p className="mt-2 text-xs text-amber-200/80">
+                    This is a Privy-managed wallet. To post dares, send STRK tokens to this address first. The paymaster only covers gas fees.
+                  </p>
+                ) : null}
               </div>
             </div>
 
