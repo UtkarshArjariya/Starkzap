@@ -361,11 +361,15 @@ export async function connectPrivyWallet(
     "0x073414441639dcd11d1846f287650a00c60c416b9d3ba45d31c651672125b2c2";
   const axSigner = new CairoCustomEnum({ Starknet: { pubkey: publicKey } });
   const axGuardian = new CairoOption(CairoOptionVariant.None);
-  const calldata = CallData.compile({ owner: axSigner, guardian: axGuardian });
+  const calldataRaw = CallData.compile({ owner: axSigner, guardian: axGuardian });
+  // Paymaster requires hex-prefixed strings
+  const calldata = calldataRaw.map((v) =>
+    typeof v === "string" && !v.startsWith("0x") ? "0x" + BigInt(v).toString(16) : v,
+  );
   const address = hash.calculateContractAddressFromHash(
     publicKey,
     ARGENT_V050_CLASS_HASH,
-    calldata,
+    calldataRaw,
     0,
   );
 

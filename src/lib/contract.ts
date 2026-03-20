@@ -51,6 +51,28 @@ async function getContract(): Promise<Contract> {
   return new Contract(DARE_BOARD_ABI, CONTRACT_ADDRESS, await getProvider());
 }
 
+// ─── Token balance ───────────────────────────────────────────────────────────
+
+const ERC20_BALANCE_ABI = [
+  {
+    name: "balanceOf",
+    type: "function",
+    inputs: [{ name: "account", type: "core::starknet::contract_address::ContractAddress" }],
+    outputs: [{ type: "core::integer::u256" }],
+    state_mutability: "view",
+  },
+] as const;
+
+export async function getTokenBalance(
+  tokenAddress: string,
+  accountAddress: string,
+): Promise<bigint> {
+  const provider = await getProvider();
+  const erc20 = new Contract(ERC20_BALANCE_ABI, tokenAddress, provider);
+  const result = await erc20.balanceOf(accountAddress);
+  return BigInt(result.toString());
+}
+
 // ─── Decoders ─────────────────────────────────────────────────────────────────
 
 const STATUS_NAME_MAP: Record<string, Dare["status"]> = {

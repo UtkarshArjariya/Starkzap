@@ -8,8 +8,8 @@ import Header from "@/components/Header";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { useWallet } from "@/context/WalletContext";
 import { useToast } from "@/context/ToastContext";
-import { STARKSCAN_URL, getTokenSymbol } from "@/lib/config";
-import { TOKENS, createDare } from "@/lib/contract";
+import { STARKSCAN_URL, getTokenDecimals, getTokenSymbol } from "@/lib/config";
+import { TOKENS, createDare, getTokenBalance } from "@/lib/contract";
 import { CATEGORIES, appendTags } from "@/lib/categories";
 import { DARE_TEMPLATES } from "@/lib/dareTemplates";
 import { decodeContractError } from "@/lib/utils";
@@ -97,6 +97,26 @@ export default function CreatePage() {
 
     try {
       const activeWallet = wallet ?? (await connect());
+
+      // Check token balance before submitting
+      const decimals = getTokenDecimals(form.rewardToken);
+      const requiredAmount = BigInt(Math.floor(Number(form.rewardAmount) * 10 ** decimals));
+      try {
+        const balance = await getTokenBalance(form.rewardToken, activeWallet.address);
+        if (balance < requiredAmount) {
+          const symbol = getTokenSymbol(form.rewardToken);
+          setError(
+            `Insufficient ${symbol} balance. Your wallet needs ${form.rewardAmount} ${symbol} to lock as reward. ` +
+            `Go to your profile to copy your wallet address and send tokens to it.`,
+          );
+          toast.error(`Insufficient ${symbol} balance — fund your wallet first.`);
+          setLoading(false);
+          return;
+        }
+      } catch {
+        // If balance check fails, let the transaction attempt proceed
+      }
+
       const finalDescription = appendTags(form.description.trim(), selectedTags);
       const hash = await createDare(activeWallet, {
         title: form.title.trim(),
