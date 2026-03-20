@@ -35,6 +35,11 @@ const STATUS_CONFIG: Record<
     className: "border-slate-300/10 bg-slate-300/5 text-slate-300",
     dotClassName: "bg-slate-400",
   },
+  Cancelled: {
+    label: "Cancelled",
+    className: "border-orange-300/20 bg-orange-300/10 text-orange-200",
+    dotClassName: "bg-orange-300",
+  },
 };
 
 export default function StatusBadge({
