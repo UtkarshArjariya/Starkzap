@@ -35,8 +35,10 @@ function createServerWallet(): WalletAccount {
 function requireCronSecret(request: Request) {
   const expectedSecret = process.env.CRON_SECRET;
 
-  // If no secret is configured, allow the request (useful during local dev).
-  if (!expectedSecret) return;
+  // If no secret is configured, reject the request in production.
+  if (!expectedSecret) {
+    throw new Error("CRON_SECRET not configured — set it in environment variables");
+  }
 
   const provided =
     request.headers.get("x-cron-secret") ??
