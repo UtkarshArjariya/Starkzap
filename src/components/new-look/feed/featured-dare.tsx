@@ -88,13 +88,12 @@ export function FeaturedDare({ dare }: FeaturedDareProps) {
                 </div>
               </div>
 
-              <Link
-                href={`/dare/${dare.id.toString()}`}
+              <span
                 className="flex items-center gap-2 rounded-full bg-primary px-6 py-3 font-semibold text-primary-foreground transition-all hover:-translate-y-0.5 hover:shadow-glow"
               >
                 Claim This Dare
                 <ArrowRight className="h-4 w-4" />
-              </Link>
+              </span>
             </div>
           </div>
         </div>
