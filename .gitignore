@@ -81,6 +81,9 @@ agenthub/agents/youtube/db
 # Dumped local documents
 dumps/
 
+# Cairo language server cache (root-level)
+target/
+
 # Cairo build artifacts (keep compiled JSON, ignore intermediates)
 contracts/Scarb.lock
 contracts/target/dev/.fingerprint/
