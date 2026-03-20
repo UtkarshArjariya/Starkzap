@@ -92,12 +92,14 @@ export default function AdminPage() {
     [wallet, toast],
   );
 
+  const currentDares = useMemo(() => dares.filter((d) => !d.legacy), [dares]);
+  const legacyDares = useMemo(() => dares.filter((d) => d.legacy), [dares]);
+
   const filteredDares = useMemo(() => {
-    const currentOnly = dares.filter((d) => !d.legacy);
-    if (filter === "delisted") return currentOnly.filter((d) => delistedMap[d.id.toString()]);
-    if (filter === "listed") return currentOnly.filter((d) => !delistedMap[d.id.toString()]);
-    return currentOnly;
-  }, [dares, delistedMap, filter]);
+    if (filter === "delisted") return currentDares.filter((d) => delistedMap[d.id.toString()]);
+    if (filter === "listed") return currentDares.filter((d) => !delistedMap[d.id.toString()]);
+    return currentDares;
+  }, [currentDares, delistedMap, filter]);
 
   // Not connected
   if (!wallet) {
@@ -173,7 +175,7 @@ export default function AdminPage() {
               }
               onClick={() => setFilter(f)}
             >
-              {f === "all" ? `All (${dares.filter((d) => !d.legacy).length})` : f === "delisted" ? `Delisted (${dares.filter((d) => !d.legacy && delistedMap[d.id.toString()]).length})` : `Listed (${dares.filter((d) => !d.legacy && !delistedMap[d.id.toString()]).length})`}
+              {f === "all" ? `All (${currentDares.length})` : f === "delisted" ? `Delisted (${currentDares.filter((d) => delistedMap[d.id.toString()]).length})` : `Listed (${currentDares.filter((d) => !delistedMap[d.id.toString()]).length})`}
             </button>
           ))}
         </section>
@@ -266,6 +268,54 @@ export default function AdminPage() {
             </div>
           )}
         </section>
+
+        {/* Legacy dares section */}
+        {!loading && legacyDares.length > 0 ? (
+          <section className="mt-8">
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-amber-300">
+              Legacy Dares ({legacyDares.length}) — Read Only
+            </h2>
+            <div className="space-y-3">
+              {legacyDares.map((dare) => (
+                <div
+                  key={`legacy-${dare.contractAddress}-${dare.id}`}
+                  className="flex items-center gap-4 rounded-2xl border border-amber-300/15 bg-amber-300/5 px-4 py-3"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono text-slate-500">#{dare.id.toString()}</span>
+                      <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-medium text-amber-300">
+                        Legacy
+                      </span>
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                        dare.status === "Open" ? "bg-emerald-500/20 text-emerald-300" :
+                        dare.status === "Claimed" ? "bg-amber-500/20 text-amber-300" :
+                        dare.status === "Voting" ? "bg-blue-500/20 text-blue-300" :
+                        "bg-slate-500/20 text-slate-400"
+                      }`}>
+                        {dare.status}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-sm font-medium text-white truncate">{dare.title}</p>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      {formatAmount(dare.rewardAmount, getTokenDecimals(dare.rewardToken))} {getTokenSymbol(dare.rewardToken)}
+                      {" · "}
+                      Poster: <StarknetAddress address={dare.poster} className="text-slate-500" />
+                    </p>
+                  </div>
+                  <div className="shrink-0">
+                    <a
+                      href={`/dare/${dare.id.toString()}?contract=${dare.contractAddress}`}
+                      className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-400 transition hover:text-white hover:bg-white/10"
+                    >
+                      View
+                    </a>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
       </main>
     </div>
   );

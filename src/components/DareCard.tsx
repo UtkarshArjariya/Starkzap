@@ -76,7 +76,7 @@ export default function DareCard({ dare }: { dare: Dare }) {
               {amount} {tokenSymbol}
             </div>
             {dare.legacy ? (
-              <div className="inline-flex rounded-full border border-slate-400/20 bg-slate-400/10 px-2.5 py-1 text-[11px] uppercase tracking-[0.22em] text-slate-400">
+              <div className="inline-flex rounded-full border border-amber-400/20 bg-amber-400/10 px-2.5 py-1 text-[11px] uppercase tracking-[0.22em] text-amber-300">
                 Legacy
               </div>
             ) : null}
@@ -135,13 +135,21 @@ export default function DareCard({ dare }: { dare: Dare }) {
         </div>
       ) : null}
 
+      {dare.legacy ? (
+        <div className="mt-4 rounded-xl border border-amber-300/15 bg-amber-300/5 px-3 py-2 text-center text-xs text-amber-200/70">
+          This dare is from a legacy contract and is no longer supported. View only.
+        </div>
+      ) : null}
+
       <div className="mt-4 flex items-center justify-between text-sm text-slate-400">
         <span>
-          {dare.status === "Open"
-            ? "Claim this dare"
-            : dare.status === "Voting"
-              ? "Review the proof"
-              : "Open details"}
+          {dare.legacy
+            ? "View only (legacy)"
+            : dare.status === "Open"
+              ? "Claim this dare"
+              : dare.status === "Voting"
+                ? "Review the proof"
+                : "Open details"}
         </span>
         <div className="flex items-center gap-2">
           <button

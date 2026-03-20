@@ -263,6 +263,13 @@ export default function DarePage() {
           Back to feed
         </Link>
 
+        {isLegacy ? (
+          <div className="mt-6 rounded-2xl border border-amber-300/20 bg-amber-300/10 px-5 py-4 text-center">
+            <p className="text-sm font-medium text-amber-200">This dare is from a legacy contract and is no longer supported.</p>
+            <p className="mt-1 text-xs text-amber-200/60">It is displayed for historical purposes only. No actions can be performed.</p>
+          </div>
+        ) : null}
+
         <div className="mt-6 grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
           <section className="surface-panel px-6 py-6">
             <div className="flex flex-wrap items-start justify-between gap-4">
