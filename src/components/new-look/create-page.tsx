@@ -182,6 +182,7 @@ export function ModernCreatePage() {
 
     try {
       const activeWallet = wallet ?? (await connect());
+      if (!activeWallet) { setLoading(false); return; }
 
       const decimals = getTokenDecimals(form.rewardToken);
       const requiredAmount = BigInt(
