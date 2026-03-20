@@ -6,7 +6,8 @@ export type DareStatus =
   | "Voting"
   | "Approved"
   | "Rejected"
-  | "Expired";
+  | "Expired"
+  | "Cancelled";
 
 export interface Dare {
   id: bigint;
