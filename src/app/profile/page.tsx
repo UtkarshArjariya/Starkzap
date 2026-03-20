@@ -86,7 +86,10 @@ function ClassicProfilePage() {
     }
 
     return dares.filter(
-      (dare) => dare.claimer && addressesMatch(dare.claimer, wallet.address),
+      (dare) =>
+        dare.claimer &&
+        dare.claimer !== ZERO_ADDRESS &&
+        addressesMatch(dare.claimer, wallet.address),
     );
   }, [dares, wallet]);
 
