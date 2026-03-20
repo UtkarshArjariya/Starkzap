@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRemoteJWKSet } from "jose";
 
-const PRIVY_API_BASE = "https://api.privy.io/v1";
-
 let jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
 let jwksAppId: string | null = null;
 function getJWKS(appId: string) {
@@ -24,16 +22,6 @@ function getEnv() {
   return { appId, appSecret };
 }
 
-function privyHeaders(appId: string, appSecret: string) {
-  return {
-    "privy-app-id": appId,
-    Authorization:
-      "Basic " +
-      Buffer.from(`${appId}:${appSecret}`).toString("base64"),
-    "Content-Type": "application/json",
-  };
-}
-
 export async function POST(req: NextRequest) {
   const token = req.headers.get("authorization")?.replace("Bearer ", "");
   if (!token) {
@@ -42,10 +30,9 @@ export async function POST(req: NextRequest) {
 
   try {
     const { appId, appSecret } = getEnv();
-    const headers = privyHeaders(appId, appSecret);
 
     // Verify token via JWKS
-    const { verifyAccessToken } = await import("@privy-io/node");
+    const { verifyAccessToken, PrivyClient } = await import("@privy-io/node");
     await verifyAccessToken({
       access_token: token,
       app_id: appId,
@@ -60,25 +47,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Sign via REST API
-    const signResp = await fetch(
-      `${PRIVY_API_BASE}/wallets/${encodeURIComponent(walletId)}/raw_sign`,
-      {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ hash }),
-      },
-    );
-    if (!signResp.ok) {
-      const errBody = await signResp.text();
-      throw new Error(`Privy signing failed: ${signResp.status} ${errBody}`);
-    }
+    // Sign via SDK — pass user JWT as authorization context
+    const privy = new PrivyClient({ appId, appSecret });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const response: any = await signResp.json();
-
-    return NextResponse.json({
-      signature: response.data?.signature ?? response.signature ?? response,
+    const response: any = await privy.wallets().rawSign(walletId, {
+      params: { hash },
+      authorization_context: { user_jwts: [token] },
     });
+
+    const signature =
+      response?.data?.signature ?? response?.signature ?? response;
+
+    return NextResponse.json({ signature });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Signing failed";
     console.error("[/api/wallet/sign]", message);
