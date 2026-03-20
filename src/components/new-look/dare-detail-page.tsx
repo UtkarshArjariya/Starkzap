@@ -77,6 +77,11 @@ const STATUS_CONFIG: Record<
     className: "border-muted-foreground/30 bg-muted text-muted-foreground",
     pulse: false,
   },
+  Cancelled: {
+    label: "Cancelled",
+    className: "border-orange-400/40 bg-orange-400/15 text-orange-400",
+    pulse: false,
+  },
 };
 
 /* ── Timeline ──────────────────────────────────────────────────────── */
@@ -171,8 +176,12 @@ export function ModernDareDetailPage() {
     }
   }, [dare?.status]);
 
-  /* ── Derived ───────────────────────────────────────────────────────── */
-  const now = Math.floor(Date.now() / 1000);
+  /* ── Live clock (updates every 30s so canClaim/canFinalize stay fresh) */
+  const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 30_000);
+    return () => clearInterval(timer);
+  }, []);
   const symbol = dare ? getTokenSymbol(dare.rewardToken) : "TOKEN";
   const rewardAmount = dare
     ? formatAmount(dare.rewardAmount, getTokenDecimals(dare.rewardToken))
@@ -216,6 +225,7 @@ export function ModernDareDetailPage() {
     setTxLoading("Claiming dare…");
     try {
       const w = wallet ?? (await connect());
+      if (!w) return;
       const hash = await claimDare(w, dareId);
       setTxHash(hash);
       toast.success("Dare claimed! Now go do it.", { txHash: hash });
@@ -235,6 +245,7 @@ export function ModernDareDetailPage() {
     setTxLoading("Finalizing dare…");
     try {
       const w = wallet ?? (await connect());
+      if (!w) return;
       const hash = await finalizeDare(w, dareId);
       setTxHash(hash);
       toast.success("Dare finalized — reward distributed.", { txHash: hash });
@@ -256,6 +267,7 @@ export function ModernDareDetailPage() {
     setTxLoading("Cancelling dare…");
     try {
       const w = wallet ?? (await connect());
+      if (!w) return;
       const hash = await cancelDare(w, dareId);
       setTxHash(hash);
       toast.success("Dare cancelled — reward returned to your wallet.", {
