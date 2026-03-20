@@ -16,8 +16,15 @@ export const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL!;
 
 export const RPC_URLS = [
   process.env.NEXT_PUBLIC_RPC_URL!,                          // Alchemy (primary)
-  "https://starknet-sepolia.public.blastapi.io",             // BlastAPI
-  "https://free-rpc.nethermind.io/sepolia-juno",             // Nethermind
+  ...(STARKNET_NETWORK === "mainnet"
+    ? [
+        "https://starknet-mainnet.public.blastapi.io",
+        "https://free-rpc.nethermind.io/mainnet-juno",
+      ]
+    : [
+        "https://starknet-sepolia.public.blastapi.io",
+        "https://free-rpc.nethermind.io/sepolia-juno",
+      ]),
 ];
 
 export const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS!;
