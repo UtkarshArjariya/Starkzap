@@ -5,6 +5,7 @@ import { CheckCircle2, ExternalLink, Link as LinkIcon, X } from "lucide-react";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { VOYAGER_URL } from "@/lib/config";
 import { submitProof } from "@/lib/contract";
+import { decodeContractError } from "@/lib/utils";
 import type { WalletAccount } from "@/lib/types";
 
 type ProofModalProps = {
@@ -43,7 +44,7 @@ export default function ProofModal({
       setTxHash(hash);
       window.setTimeout(onSubmitted, 1800);
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Proof submission failed");
+      setError(decodeContractError(submitError));
     } finally {
       setLoading(false);
     }
