@@ -15,6 +15,7 @@ const statusConfig: Record<DareStatus, { label: string; className: string }> = {
   Approved: { label: "Approved", className: "bg-success/20 text-success border-success/30" },
   Rejected: { label: "Rejected", className: "bg-destructive/20 text-destructive border-destructive/30" },
   Expired: { label: "Expired", className: "bg-muted text-muted-foreground border-muted" },
+  Cancelled: { label: "Cancelled", className: "bg-orange-500/20 text-orange-400 border-orange-500/30" },
 };
 
 export function ModernDareCard({ dare }: { dare: Dare }) {
@@ -25,7 +26,7 @@ export function ModernDareCard({ dare }: { dare: Dare }) {
   const tags = extractTags(dare.description);
   const totalVotes = dare.approveVotes + dare.rejectVotes;
   const votePercentage = totalVotes > 0 ? (dare.approveVotes / totalVotes) * 100 : 50;
-  const isHighValue = Number(dare.rewardAmount) / 1e18 >= 10;
+  const isHighValue = Number(dare.rewardAmount) / (10 ** getTokenDecimals(dare.rewardToken)) >= 10;
   const isFinished = dare.status === "Approved" || dare.status === "Rejected" || dare.status === "Expired";
 
   const now = Math.floor(Date.now() / 1000);
