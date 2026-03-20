@@ -82,6 +82,7 @@ const STATUS_NAME_MAP: Record<string, Dare["status"]> = {
   Approved: "Approved",
   Rejected: "Rejected",
   Expired: "Expired",
+  Cancelled: "Cancelled",
 };
 
 function decodeStatus(raw: unknown): Dare["status"] {
