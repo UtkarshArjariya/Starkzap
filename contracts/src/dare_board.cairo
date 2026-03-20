@@ -93,10 +93,14 @@ pub trait IDareBoard<TContractState> {
     fn cast_vote(ref self: TContractState, dare_id: u64, approve: bool);
     fn finalize_dare(ref self: TContractState, dare_id: u64);
     fn cancel_dare(ref self: TContractState, dare_id: u64);
+    fn delist_dare(ref self: TContractState, dare_id: u64);
+    fn relist_dare(ref self: TContractState, dare_id: u64);
     fn get_dare(self: @TContractState, dare_id: u64) -> Dare;
     fn get_dare_count(self: @TContractState) -> u64;
     fn has_voter_voted(self: @TContractState, dare_id: u64, voter: ContractAddress) -> bool;
+    fn is_delisted(self: @TContractState, dare_id: u64) -> bool;
     fn get_treasury(self: @TContractState) -> ContractAddress;
+    fn get_owner(self: @TContractState) -> ContractAddress;
 }
 
 // ─── Contract ─────────────────────────────────────────────────────────────────
@@ -119,6 +123,7 @@ pub mod DareBoard {
         treasury: ContractAddress,
         dares: Map<u64, DareNode>,
         has_voted: Map<(u64, ContractAddress), bool>,
+        delisted: Map<u64, bool>,
     }
 
     // ─── Events ───────────────────────────────────────────────────────────────
@@ -388,8 +393,30 @@ pub mod DareBoard {
             self.has_voted.read((dare_id, voter))
         }
 
+        fn delist_dare(ref self: ContractState, dare_id: u64) {
+            let caller = get_caller_address();
+            assert(caller == self.owner.read(), 'Not the owner');
+            assert(dare_id >= 1 && dare_id <= self.dare_count.read(), 'Invalid dare id');
+            self.delisted.write(dare_id, true);
+        }
+
+        fn relist_dare(ref self: ContractState, dare_id: u64) {
+            let caller = get_caller_address();
+            assert(caller == self.owner.read(), 'Not the owner');
+            assert(dare_id >= 1 && dare_id <= self.dare_count.read(), 'Invalid dare id');
+            self.delisted.write(dare_id, false);
+        }
+
+        fn is_delisted(self: @ContractState, dare_id: u64) -> bool {
+            self.delisted.read(dare_id)
+        }
+
         fn get_treasury(self: @ContractState) -> ContractAddress {
             self.treasury.read()
+        }
+
+        fn get_owner(self: @ContractState) -> ContractAddress {
+            self.owner.read()
         }
     }
 }

@@ -425,3 +425,53 @@ fn test_finalize_below_min_votes_rejects() {
     // Poster gets back escrowed amount (creation fee already taken)
     assert(token.balance_of(POSTER()) == ESCROWED_AMOUNT, 'Poster should get refund');
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DELIST / RELIST TESTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+#[test]
+fn test_delist_and_relist_dare() {
+    let (board, token_addr, _token) = setup();
+    let dare_id = create_default_dare(board, token_addr);
+
+    assert(!board.is_delisted(dare_id), 'Should not be delisted');
+
+    // Owner delists
+    start_cheat_caller_address(board.contract_address, OWNER());
+    board.delist_dare(dare_id);
+    stop_cheat_caller_address(board.contract_address);
+
+    assert(board.is_delisted(dare_id), 'Should be delisted');
+
+    // Owner relists
+    start_cheat_caller_address(board.contract_address, OWNER());
+    board.relist_dare(dare_id);
+    stop_cheat_caller_address(board.contract_address);
+
+    assert(!board.is_delisted(dare_id), 'Should be relisted');
+}
+
+#[test]
+#[should_panic(expected: 'Not the owner')]
+fn test_non_owner_cannot_delist() {
+    let (board, token_addr, _token) = setup();
+    let dare_id = create_default_dare(board, token_addr);
+
+    start_cheat_caller_address(board.contract_address, POSTER());
+    board.delist_dare(dare_id);
+}
+
+#[test]
+#[should_panic(expected: 'Not the owner')]
+fn test_non_owner_cannot_relist() {
+    let (board, token_addr, _token) = setup();
+    let dare_id = create_default_dare(board, token_addr);
+
+    start_cheat_caller_address(board.contract_address, OWNER());
+    board.delist_dare(dare_id);
+    stop_cheat_caller_address(board.contract_address);
+
+    start_cheat_caller_address(board.contract_address, POSTER());
+    board.relist_dare(dare_id);
+}

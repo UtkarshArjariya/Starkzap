@@ -80,6 +80,9 @@ export function getTokenDecimals(address: string): number {
 
 export const ZERO_ADDRESS = `0x${"0".repeat(64)}`;
 
+// Admin address — only this wallet can access /admin and delist/relist dares
+export const ADMIN_ADDRESS = "0x04B67aB7a04436415873A276F57661E252755B392e8c953cEc9D65905ebcF220";
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 export function getTokenSymbol(address: string): string {

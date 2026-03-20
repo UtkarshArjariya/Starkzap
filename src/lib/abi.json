@@ -256,6 +256,30 @@
       },
       {
         "type": "function",
+        "name": "delist_dare",
+        "inputs": [
+          {
+            "name": "dare_id",
+            "type": "core::integer::u64"
+          }
+        ],
+        "outputs": [],
+        "state_mutability": "external"
+      },
+      {
+        "type": "function",
+        "name": "relist_dare",
+        "inputs": [
+          {
+            "name": "dare_id",
+            "type": "core::integer::u64"
+          }
+        ],
+        "outputs": [],
+        "state_mutability": "external"
+      },
+      {
+        "type": "function",
         "name": "get_dare",
         "inputs": [
           {
@@ -303,7 +327,34 @@
       },
       {
         "type": "function",
+        "name": "is_delisted",
+        "inputs": [
+          {
+            "name": "dare_id",
+            "type": "core::integer::u64"
+          }
+        ],
+        "outputs": [
+          {
+            "type": "core::bool"
+          }
+        ],
+        "state_mutability": "view"
+      },
+      {
+        "type": "function",
         "name": "get_treasury",
+        "inputs": [],
+        "outputs": [
+          {
+            "type": "core::starknet::contract_address::ContractAddress"
+          }
+        ],
+        "state_mutability": "view"
+      },
+      {
+        "type": "function",
+        "name": "get_owner",
         "inputs": [],
         "outputs": [
           {

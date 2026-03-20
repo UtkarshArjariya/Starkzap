@@ -265,14 +265,18 @@ export async function getDare(dareId: bigint, contractAddr?: string): Promise<Da
   return decodeDare(raw, dareId, contractAddr ?? CONTRACT_ADDRESS, !!isLegacy);
 }
 
-export async function getAllDares(): Promise<Dare[]> {
+export async function getAllDares(includeDelisted = false): Promise<Dare[]> {
   // Fetch from current + legacy contracts in parallel
   const [currentDares, legacyDares] = await Promise.all([
     (async () => {
       const count = Number(await getDareCount());
       if (count === 0) return [];
       const ids = Array.from({ length: count }, (_, i) => BigInt(i + 1));
-      return Promise.all(ids.map((id) => getDare(id)));
+      const dares = await Promise.all(ids.map((id) => getDare(id)));
+      if (includeDelisted) return dares;
+      // Filter out delisted dares
+      const delistChecks = await Promise.all(ids.map((id) => isDelisted(id).catch(() => false)));
+      return dares.filter((_, i) => !delistChecks[i]);
     })(),
     getLegacyDares(),
   ]);
@@ -297,8 +301,11 @@ export async function getDaresPaginated(
       { length: endId - startId + 1 },
       (_, i) => BigInt(startId + i),
     );
+    const dares = await Promise.all(ids.map((id) => getDare(id)));
+    // Filter out delisted dares
+    const delistChecks = await Promise.all(ids.map((id) => isDelisted(id).catch(() => false)));
     currentDares.push(
-      ...(await Promise.all(ids.map((id) => getDare(id)))).reverse(),
+      ...dares.filter((_, i) => !delistChecks[i]).reverse(),
     );
   }
 
@@ -542,6 +549,52 @@ export async function cancelDare(
     {
       contractAddress: CONTRACT_ADDRESS,
       entrypoint: "cancel_dare",
+      calldata,
+    },
+  ]);
+
+  return result.transaction_hash;
+}
+
+// ─── Admin functions ─────────────────────────────────────────────────────────
+
+export async function isDelisted(dareId: bigint): Promise<boolean> {
+  const contract = await getContract();
+  const result = await contract.is_delisted(dareId);
+  return Boolean(result);
+}
+
+export async function delistDare(
+  wallet: WalletAccount,
+  dareId: bigint,
+): Promise<string> {
+  const calldata = new CallData(DARE_BOARD_ABI).compile("delist_dare", {
+    dare_id: dareId,
+  });
+
+  const result = await wallet.execute([
+    {
+      contractAddress: CONTRACT_ADDRESS,
+      entrypoint: "delist_dare",
+      calldata,
+    },
+  ]);
+
+  return result.transaction_hash;
+}
+
+export async function relistDare(
+  wallet: WalletAccount,
+  dareId: bigint,
+): Promise<string> {
+  const calldata = new CallData(DARE_BOARD_ABI).compile("relist_dare", {
+    dare_id: dareId,
+  });
+
+  const result = await wallet.execute([
+    {
+      contractAddress: CONTRACT_ADDRESS,
+      entrypoint: "relist_dare",
       calldata,
     },
   ]);
