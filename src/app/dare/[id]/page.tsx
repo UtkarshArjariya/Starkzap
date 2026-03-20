@@ -239,7 +239,7 @@ function ClassicDarePage() {
     );
   }
 
-  if (!dare || error) {
+  if (!dare) {
     return (
       <div className="min-h-screen">
         <AdaptiveHeader />
