@@ -7,14 +7,15 @@ export default function ProofPreview({ url }: { url: string }) {
 
   // YouTube
   const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&?\s]+)/);
-  if (ytMatch) {
+  const ytId = ytMatch?.[1];
+  if (ytId && /^[a-zA-Z0-9_-]{11}$/.test(ytId)) {
     return (
       <div className="relative w-full overflow-hidden rounded-2xl border border-white/10" style={{ paddingBottom: "56.25%" }}>
         <iframe
           allowFullScreen
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           className="absolute inset-0 h-full w-full"
-          src={`https://www.youtube.com/embed/${ytMatch[1]}`}
+          src={`https://www.youtube.com/embed/${ytId}`}
           title="Proof video"
         />
       </div>
