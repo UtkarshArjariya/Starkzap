@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AlertTriangle, Menu, Moon, Sun, Trophy, X, Zap, LogOut, UserRound, ToggleRight } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { shortAddress } from "@/lib/config";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/context/ThemeContext";
@@ -22,6 +22,10 @@ export default function Header() {
   const { theme, toggle: toggleTheme } = useTheme();
   const { toggle: toggleUI } = useUI();
   const { wallet, wrongNetwork, expectedNetwork, connect, disconnect } = useWallet();
+
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
 
   return (
     <header className="sticky top-0 z-40">

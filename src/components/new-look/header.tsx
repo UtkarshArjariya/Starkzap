@@ -202,6 +202,11 @@ export function ModernHeader() {
   const notificationRef = useRef<HTMLDivElement>(null);
   const walletRef = useRef<HTMLDivElement>(null);
 
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
+
   // Fetch dares for notifications
   const loadNotifications = useCallback(async () => {
     if (!wallet) return;
