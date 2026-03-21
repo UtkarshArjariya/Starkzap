@@ -14,8 +14,7 @@
 
 <p align="center">
   <a href="https://dareboard.vercel.app">Live App</a> &bull;
-  <a href="https://sepolia.voyager.online/contract/0x04efdb284186b5d96b177f53cd69653348620d45833e7f49440a052f3fafb0f5">Contract on Voyager</a> &bull;
-  <a href="https://sepolia.starkscan.co/contract/0x04efdb284186b5d96b177f53cd69653348620d45833e7f49440a052f3fafb0f5">Contract on Starkscan</a>
+  <a href="https://sepolia.voyager.online/contract/0x04efdb284186b5d96b177f53cd69653348620d45833e7f49440a052f3fafb0f5">Contract on Voyager</a>
 </p>
 
 ---
@@ -54,6 +53,7 @@
 | **Auto-finalization** | GitHub Actions cron job calls `/api/finalize` every 5 minutes |
 | **Starknet.id** | Resolves `.stark` names for all addresses |
 | **Dark/Light mode** | Full theme support with CSS variable system |
+| **Modern UI** | Alternate modern look with glass-panel design, live ticker, settings modal |
 | **Leaderboard** | Top earners, top posters, most voted dares |
 | **Dare of the Day** | Daily featured dare with rotation algorithm |
 | **Categories** | Tag dares with fitness, food, social media, etc. |
@@ -127,7 +127,7 @@
 │   ├── src/
 │   │   └── dare_board.cairo          # Main contract (dares, voting, fees, admin)
 │   ├── tests/
-│   │   └── test_dare_board.cairo     # 18 snforge tests
+│   │   └── test_dare_board.cairo     # snforge tests
 │   ├── scripts/
 │   │   └── deploy.ts                 # sncast declare + deploy script
 │   ├── Scarb.toml
@@ -153,7 +153,8 @@
 │   │   └── globals.css               # Design tokens + light/dark themes
 │   │
 │   ├── components/
-│   │   ├── Header.tsx                # Sticky nav + wallet connection
+│   │   ├── Header.tsx                # Classic sticky nav + wallet connection
+│   │   ├── AdaptiveHeader.tsx        # Switches between classic/modern header
 │   │   ├── DareCard.tsx              # Feed card + skeleton
 │   │   ├── DareOfTheDay.tsx          # Featured dare spotlight
 │   │   ├── VotePanel.tsx             # Proof display + vote buttons
@@ -165,12 +166,29 @@
 │   │   ├── StarknetAddress.tsx       # .stark name resolution + copy
 │   │   ├── ShareButton.tsx           # Copy link + X share
 │   │   ├── Toast.tsx                 # Toast notification overlay
-│   │   └── LoadingSpinner.tsx
+│   │   ├── LoadingSpinner.tsx
+│   │   └── new-look/                 # Modern UI components
+│   │       ├── header.tsx            # Modern header with notifications + wallet balance
+│   │       ├── feed-page.tsx         # Modern feed layout
+│   │       ├── dare-card.tsx         # Modern dare card
+│   │       ├── dare-detail-page.tsx  # Modern dare detail
+│   │       ├── create-page.tsx       # Modern create form
+│   │       ├── profile-page.tsx      # Modern profile
+│   │       ├── leaderboard-page.tsx  # Modern leaderboard
+│   │       ├── settings-modal.tsx    # Theme + UI toggle settings
+│   │       ├── utils.ts              # Shared modern UI helpers
+│   │       └── feed/                 # Feed sub-components
+│   │           ├── hero.tsx          # Hero section
+│   │           ├── live-ticker.tsx   # Real-time activity ticker
+│   │           ├── featured-dare.tsx # Featured dare spotlight
+│   │           ├── filters.tsx       # Filter controls
+│   │           └── how-it-works.tsx  # Onboarding flow
 │   │
 │   ├── context/
 │   │   ├── WalletContext.tsx          # Wallet state + 3 wallet paths
 │   │   ├── ToastContext.tsx           # Toast notification system
-│   │   └── ThemeContext.tsx           # Dark/light mode toggle
+│   │   ├── ThemeContext.tsx           # Dark/light mode toggle
+│   │   └── UIContext.tsx              # Classic/modern UI mode toggle
 │   │
 │   └── lib/
 │       ├── contract.ts               # All contract read/write calls
@@ -223,7 +241,7 @@ cd contracts
 # Build
 scarb build
 
-# Run tests (18 tests)
+# Run tests
 scarb test   # or: snforge test
 
 # Deploy (requires funded deployer account)
@@ -343,7 +361,7 @@ It calls `POST /api/finalize` with `Authorization: Bearer $CRON_SECRET`. The end
 1. Fork the repo
 2. Create a feature branch (`git checkout -b feat/my-feature`)
 3. Make changes and run `npm run typecheck`
-4. For Cairo changes, run `scarb test` (all 18 tests must pass)
+4. For Cairo changes, run `scarb test` (all tests must pass)
 5. Commit and push
 6. Open a PR
 

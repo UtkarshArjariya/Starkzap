@@ -4,7 +4,7 @@
 > **Repo:** https://github.com/UtkarshArjariya/Starkzap
 > **Stack:** Next.js 16 App Router · TypeScript · Tailwind · Cairo 2.x · starknet.js v6.11 · StarkZap SDK
 > **Fonts:** Space Grotesk (sans) + IBM Plex Mono (mono)
-> **Last updated:** 2026-03-17
+> **Last updated:** 2026-03-21
 
 ---
 
@@ -16,15 +16,15 @@ NEXT_PUBLIC_CONTRACT_ADDRESS=0x05293f7708c819dbfc1cc9f004419e9d306ca0eb3c00a0e59
 NEXT_PUBLIC_STARKNET_NETWORK=sepolia
 NEXT_PUBLIC_RPC_URL=https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_10/FpjFg5i2ZpZbNz7lXotzq/
 NEXT_PUBLIC_PRIVY_APP_ID=cmmqagmlz00dp0ci6ur9g3p7y
-NEXT_PUBLIC_STARKSCAN_URL=https://sepolia.voyager.online/
+# Explorer URL is auto-derived from STARKNET_NETWORK in config.ts (Voyager)
 
 # Legacy contract addresses — dares shown read-only in feed
 NEXT_PUBLIC_LEGACY_CONTRACTS=0x5c1133ffe3abc39dad78291b898b2e5637e109efc03f0f03eeec41d77e1706b,0x030857207b1130b26db3b522f6e3e96ba848cc0e751c6c87f475ed8381cd4999
 
 # Server-only — never in NEXT_PUBLIC_ vars, never committed to git
-DEPLOYER_PUBLIC_KEY=0x04B67aB7a04436415873A276F57661E252755B392e8c953cEc9D65905ebcF220
-DEPLOYER_PRIVATE_KEY=0x00e6d4c153062a9191cedcb0521ecc7772481a95b99c21da5fe1c1133f825ff2
-CONTRACT_CLASS_HASH=0x6902d81d91c436381fca13439b042676bf0fbf7be672c72238c88be3dd156c2
+DEPLOYER_PUBLIC_KEY=<deployer wallet public key>
+DEPLOYER_PRIVATE_KEY=<deployer wallet private key — NEVER commit this>
+CONTRACT_CLASS_HASH=<declared class hash from sncast>
 CRON_SECRET=<generate: openssl rand -hex 32 — same in Vercel AND GitHub Actions secrets>
 AVNU_API_KEY=<AVNU paymaster API key — server-only, used by /api/paymaster proxy>
 PRIVY_APP_SECRET=<from privy.io → Settings → API Keys — needed for Privy backend routes>
@@ -87,7 +87,7 @@ The app reads dares from previous deployments via `NEXT_PUBLIC_LEGACY_CONTRACTS`
 - [x] `Cancelled` status variant added to enum
 - [x] ERC20 escrow: STRK + ETH (contract accepts any ERC20)
 - [x] Security audit: assert all 6 ERC20 return values (transfer + transfer_from)
-- [x] 15 snfoundry tests with MockERC20 (lifecycle, access control, vote threshold, cancel, expiry)
+- [x] 18 snfoundry tests with MockERC20 (lifecycle, access control, vote threshold, cancel, expiry)
 - [x] snforge_std v0.57.0 configured
 
 ### Frontend Features
@@ -113,7 +113,10 @@ The app reads dares from previous deployments via `NEXT_PUBLIC_LEGACY_CONTRACTS`
 - [x] Mobile-responsive layout with bottom-sheet modals
 - [x] Wallet network guard (warns if wrong network)
 - [x] Confetti animation on Approved dares
-- [x] Starkscan tx links throughout UI
+- [x] Voyager explorer links throughout UI
+- [x] Modern UI (new-look) with glass panels, live ticker, real notifications, wallet balance display
+- [x] UIContext for classic/modern UI toggle with AdaptiveHeader
+- [x] Settings modal with real theme + UI mode controls
 
 ### Wallet & SDK
 - [x] Extension wallets (Argent X + Braavos) via `@starknet-io/get-starknet-core` v4
@@ -206,7 +209,7 @@ The app reads dares from previous deployments via `NEXT_PUBLIC_LEGACY_CONTRACTS`
 ### P3 — Production Ready
 
 #### 4.7 Contract Security Review (Pre-Mainnet)
-**What's done:** ERC20 return value assertions, 15 test cases.
+**What's done:** ERC20 return value assertions, 18 test cases.
 **What's left:** Full adversarial audit before mainnet:
 - Reentrancy analysis (Starknet execution model)
 - Integer overflow in vote counts, reward amounts, timestamps
@@ -228,7 +231,7 @@ The `owner` field is stored but unused. Add before mainnet:
 ```bash
 NEXT_PUBLIC_STARKNET_NETWORK=mainnet
 NEXT_PUBLIC_RPC_URL=<alchemy mainnet URL>
-NEXT_PUBLIC_STARKSCAN_URL=https://starkscan.co
+# VOYAGER_URL is auto-derived from STARKNET_NETWORK in config.ts
 ```
 
 Token addresses are identical on mainnet and Sepolia for STRK, ETH.
@@ -284,7 +287,7 @@ Token addresses are identical on mainnet and Sepolia for STRK, ETH.
 - Address: `0x05293f7708c819dbfc1cc9f004419e9d306ca0eb3c00a0e5955d73f565eb6803`
 - Class hash: `0x6902d81d91c436381fca13439b042676bf0fbf7be672c72238c88be3dd156c2`
 - ABI: `src/lib/abi.json`
-- Explorer: `https://sepolia.starkscan.co/contract/0x05293f...`
+- Explorer: `https://sepolia.voyager.co/contract/0x05293f...`
 
 ### Status Flow
 ```
@@ -334,7 +337,7 @@ npm run typecheck    # TypeScript check (uses tsconfig.typecheck.json)
 
 # Cairo contract (from contracts/)
 scarb build          # Compile Cairo contract
-scarb test           # Run Cairo tests (15 tests passing)
+scarb test           # Run Cairo tests (18 tests passing)
 
 # Deploy contract + start frontend
 DEPLOYER_PRIVATE_KEY=0x... ./deploy.sh

@@ -1,6 +1,6 @@
 # Starkzap — Codebase Analysis & Roadmap Reference
 
-> Updated: 2026-03-17 | Branch: main | Status: clean
+> Updated: 2026-03-21 | Branch: main | Status: clean
 
 ---
 
@@ -55,7 +55,8 @@ Starkzap(emergent)/
 │   │   ├── CountdownTimer.tsx           # Deadline / voting-end live countdown
 │   │   ├── DareCard.tsx                 # Feed card (status, reward, timer, copy-link, categories, Starknet.id names)
 │   │   ├── DareOfTheDay.tsx             # Featured dare banner above feed filters
-│   │   ├── Header.tsx                   # App header + wallet connect + network warning + dark/light toggle
+│   │   ├── Header.tsx                   # Classic header + wallet connect + network warning + dark/light toggle
+│   │   ├── AdaptiveHeader.tsx           # Switches between classic/modern header based on UIContext
 │   │   ├── LoadingSpinner.tsx           # Reusable spinner
 │   │   ├── ProofModal.tsx               # Bottom-sheet modal for proof submission
 │   │   ├── ProofPreview.tsx             # Auto-embed YouTube, image, video, imgur URLs
@@ -64,11 +65,28 @@ Starkzap(emergent)/
 │   │   ├── StatusBadge.tsx              # Color-coded dare status pill
 │   │   ├── Toast.tsx                    # Toast notification component (bottom-right, auto-dismiss)
 │   │   ├── VotePanel.tsx                # Vote UI with threshold progress indicator (X/3)
-│   │   └── WalletModal.tsx              # Wallet picker (Argent X, Braavos, Cartridge Controller)
+│   │   ├── WalletModal.tsx              # Wallet picker (Argent X, Braavos, Cartridge Controller)
+│   │   └── new-look/                    # Modern UI components (glass-panel design)
+│   │       ├── header.tsx               # Modern header with notifications + wallet balance
+│   │       ├── feed-page.tsx            # Modern feed layout
+│   │       ├── dare-card.tsx            # Modern dare card with urgency/high-value badges
+│   │       ├── dare-detail-page.tsx     # Modern dare detail (adaptive by status)
+│   │       ├── create-page.tsx          # Modern create dare form
+│   │       ├── profile-page.tsx         # Modern profile with stats + activity
+│   │       ├── leaderboard-page.tsx     # Modern leaderboard with podium
+│   │       ├── settings-modal.tsx       # Theme + UI toggle settings
+│   │       ├── utils.ts                 # Shared helpers (getAvatarGradient, etc.)
+│   │       └── feed/                    # Feed sub-components
+│   │           ├── hero.tsx             # Hero section with stats
+│   │           ├── live-ticker.tsx      # Real-time activity ticker (from dare data)
+│   │           ├── featured-dare.tsx    # Featured dare spotlight
+│   │           ├── filters.tsx          # Filter controls
+│   │           └── how-it-works.tsx     # Onboarding flow
 │   │
 │   ├── context/
 │   │   ├── ThemeContext.tsx             # Dark/light mode state, localStorage persistence
 │   │   ├── ToastContext.tsx             # Toast state management (max 3, 5s auto-dismiss)
+│   │   ├── UIContext.tsx                # Classic/modern UI mode toggle (localStorage persistence)
 │   │   └── WalletContext.tsx            # Wallet state, network guard, connect/disconnect (extension + Cartridge)
 │   │
 │   ├── hooks/
@@ -93,7 +111,7 @@ Starkzap(emergent)/
 │   │   ├── lib.cairo                    # Module root: pub mod dare_board
 │   │   └── dare_board.cairo             # Main contract (DareBoard) — all ERC20 return values asserted
 │   ├── tests/
-│   │   └── test_dare_board.cairo        # 15 snfoundry tests (lifecycle, access control, edge cases)
+│   │   └── test_dare_board.cairo        # 18 snfoundry tests (lifecycle, access control, edge cases)
 │   ├── scripts/
 │   │   ├── deploy.ts                    # Deploy script using sncast (declare + deploy + update env)
 │   │   ├── package.json                 # Deploy script deps
@@ -133,7 +151,7 @@ Starkzap(emergent)/
 | Package name   | `dare_board`                                 |
 | Module         | `DareBoard`                                  |
 | Starknet dep   | `>=2.8.0`                                    |
-| Test framework | snfoundry v0.57.0 (15 tests passing)         |
+| Test framework | snfoundry v0.57.0 (18 tests passing)         |
 | Outputs        | Sierra + CASM                                |
 | Network        | Starknet Sepolia                             |
 | ABI location   | `src/lib/abi.json`                           |
@@ -270,13 +288,13 @@ The contract itself accepts any ERC20 — frontend is the restrictor. `getTokenD
 
 ### 3.8 Test Coverage
 
-15 snfoundry tests in `contracts/tests/test_dare_board.cairo` with a MockERC20:
+18 snfoundry tests in `contracts/tests/test_dare_board.cairo` with a MockERC20:
 - Full dare lifecycle (create → claim → proof → vote → finalize)
 - Access control checks (poster can't claim, non-claimer can't submit proof, etc.)
 - Vote threshold enforcement (minimum 3 votes)
 - Cancel dare + refund
 - Expiry handling
-- All 15 tests pass (`scarb test`)
+- All 18 tests pass (`scarb test`)
 
 ### 3.9 Known Contract Limitations
 
@@ -433,7 +451,7 @@ cd scripts && npx ts-node --project tsconfig.json deploy.ts
 - Minimum 3 votes required before finalization counts
 - ERC20 escrow with STRK, ETH (contract accepts any ERC20)
 - All ERC20 transfer return values asserted (security audit fix)
-- 15 snfoundry tests passing (full lifecycle, access control, edge cases)
+- 18 snfoundry tests passing (full lifecycle, access control, edge cases)
 - Community voting with deduplication
 - Automated finalization via GitHub Actions
 - Wallet connect: Argent X, Braavos (extension), Cartridge Controller (social login + zero gas)
@@ -461,13 +479,16 @@ cd scripts && npx ts-node --project tsconfig.json deploy.ts
 - Multi-decimal token support (USDC 6, WBTC 8, STRK/ETH 18)
 - Confetti animation on Approved dares
 - Deploy script using sncast
-- Starkscan tx links throughout UI
+- Voyager explorer links throughout UI
+- Modern UI (new-look) with glass panels, live ticker, real notifications, wallet balance
+- UIContext for classic/modern UI toggle with AdaptiveHeader
+- Settings modal with real theme + UI mode controls
 - Vercel Speed Insights + Analytics
 
 ### Remaining Gaps
 - Privy social login (Email/Google/Apple) — partially built, not committed (runtime errors)
 - No on-chain search or filtering (all filtering is client-side)
-- No notifications (no event listeners, no email/push)
+- No push notifications (modern header has on-chain activity notifications, but no email/push)
 - No multi-claimer / competitive mode
 - No mainnet deployment (Sepolia only)
 - No admin functions (owner stored but unused — no pause/emergency stop)
@@ -482,7 +503,7 @@ cd scripts && npx ts-node --project tsconfig.json deploy.ts
 - [x] Add `cancel_dare` for poster to reclaim funds while Open
 - [x] Add minimum vote threshold (3 votes required)
 - [x] Assert ERC20 return values on all transfer calls (security audit)
-- [x] 15 snfoundry tests covering full lifecycle and edge cases
+- [x] 18 snfoundry tests covering full lifecycle and edge cases
 - [ ] Add tie-breaker logic (e.g., time-weighted, or default to Approved)
 - [ ] Add `tag` / `category` field to dare storage (currently encoded in description)
 - [ ] Consider reputation/stake mechanics for voters
@@ -564,6 +585,11 @@ cd scripts && npx ts-node --project tsconfig.json deploy.ts
 | Profile (activity timeline)      | `src/app/profile/page.tsx`            |
 | Leaderboard (3 tabs)             | `src/app/leaderboard/page.tsx`        |
 | Dare of the Day component        | `src/components/DareOfTheDay.tsx`      |
+| Adaptive header (classic/modern) | `src/components/AdaptiveHeader.tsx`    |
+| UI mode context                  | `src/context/UIContext.tsx`            |
+| Modern UI components             | `src/components/new-look/`            |
+| Modern header + notifications    | `src/components/new-look/header.tsx`  |
+| Settings modal (theme + UI)      | `src/components/new-look/settings-modal.tsx` |
 | Starknet address display         | `src/components/StarknetAddress.tsx`   |
 | OG image generation              | `src/app/api/og/[id]/route.tsx`       |
 | AVNU paymaster proxy             | `src/app/api/paymaster/route.ts`      |
