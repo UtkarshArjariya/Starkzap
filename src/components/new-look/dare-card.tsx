@@ -89,9 +89,9 @@ export function ModernDareCard({ dare }: { dare: Dare }) {
             )}
           </div>
 
-          <div className="flex items-center gap-2 rounded-2xl bg-accent/10 px-3 py-1.5">
-            <span className="text-lg font-bold text-accent">{amount}</span>
-            <span className="text-xs font-medium text-accent/80">{tokenSymbol}</span>
+          <div className="flex shrink-0 items-center gap-2 rounded-2xl bg-accent/10 px-3 py-1.5">
+            <span className="truncate text-lg font-bold text-accent">{amount}</span>
+            <span className="shrink-0 text-xs font-medium text-accent/80">{tokenSymbol}</span>
           </div>
         </div>
 

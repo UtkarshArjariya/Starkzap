@@ -105,7 +105,7 @@ function ClassicFeedPage() {
   }, [dares, filter, categoryFilter]);
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen overflow-x-hidden">
       <Header />
 
       <main className="mx-auto max-w-6xl px-4 pb-16 pt-8 sm:px-6">

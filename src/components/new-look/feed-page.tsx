@@ -97,7 +97,7 @@ export function ModernFeedPage() {
   }, [dares]);
 
   return (
-    <div className="min-h-screen bg-background pb-20 md:pb-0">
+    <div className="min-h-screen overflow-x-hidden bg-background pb-20 md:pb-0">
       <ModernHeader />
       <Hero totalDares={total} />
       <LiveTicker dares={dares} />
